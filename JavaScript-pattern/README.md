@@ -1,8 +1,14 @@
 # JavaScript Patterns Asked in Company Interviews
 
 A curated collection of the most frequently asked JavaScript "machine coding" / implementation
-patterns. Each pattern includes a short explanation, a working implementation, and **company tags**
-indicating where this style of question has commonly been reported in interview rounds.
+patterns. Each pattern includes:
+
+- **What it is** — a short definition.
+- **When to use it** — the signals that tell you this pattern is the right tool.
+- **Real-world use cases** — concrete scenarios where it shows up in production.
+- **Company tags** — where this style of question has commonly been reported in interview rounds.
+- **Implementation** — clean, commented code, plus common follow-up variants.
+- **Pitfalls / gotchas** — what interviewers probe after you write the happy path.
 
 > **Note on company tags:** Tags are *indicative*, compiled from widely shared interview experiences
 > (blogs, Glassdoor, LeetCode discuss, GreatFrontend, FrontendInterviewHandbook). Interview content
@@ -30,12 +36,43 @@ indicating where this style of question has commonly been reported in interview 
 17. [Observer Pattern](#17-observer-pattern)
 18. [Factory Pattern](#18-factory-pattern)
 
+### Quick "When to use" cheat sheet
+
+| Pattern | Reach for it when… |
+|---------|--------------------|
+| Debounce | You want to act **only after activity stops** (search box, autosave, resize). |
+| Throttle | You want to act **at a steady max rate** during continuous activity (scroll, mousemove, drag). |
+| Currying | You want to **pre-fill arguments** and build specialized functions / improve reuse. |
+| Deep Clone | You need a **fully independent copy** of nested data without shared references. |
+| Compose / Pipe | You want to **chain small pure functions** into a readable data pipeline. |
+| Memoization | A function is **pure and expensive**, and inputs repeat. |
+| Polyfills (map/reduce/bind…) | You must **support old environments** or prove you understand the built-in. |
+| Promise.all / race / any | You're coordinating **multiple async tasks** with different "done" rules. |
+| Promisify | You're wrapping a **callback-style API** to use with async/await. |
+| EventEmitter | Parts of the app need to **communicate without tight coupling**. |
+| Flatten | You have **arbitrarily nested arrays** to normalize. |
+| Retry | An async op **fails transiently** (network, rate limits) and is safe to repeat. |
+| Singleton | You need **exactly one shared instance** (config, cache, DB connection). |
+| Observer | Many parts must **react to one source's state changes**. |
+| Factory | Object creation logic is **complex or conditional** and should be centralized. |
+
 ---
 
 ## 1. Debounce
 
 **What:** Delays invoking a function until a period of inactivity has elapsed. Every new call resets the
-timer. Useful for search inputs, resize/scroll handlers, and autosave.
+timer, so the function ultimately runs **once**, after the burst of calls has stopped.
+
+**When to use it:**
+- The event fires rapidly but you only care about the **final state** after the user pauses.
+- Each invocation is relatively **expensive** (network call, heavy computation, DOM write).
+- It's acceptable — even desirable — to **skip** intermediate calls.
+
+**Real-world use cases:**
+- **Search-as-you-type / autocomplete** — wait until the user stops typing before hitting the API.
+- **Autosave** in editors (Google Docs style) — save a few hundred ms after the last keystroke.
+- **Window `resize`** — recompute layout only once the user finishes dragging the window edge.
+- **Form validation** — validate after the user stops editing a field.
 
 **Tags:** `Amazon` `Google` `Uber` `Microsoft` `Flipkart` `PayPal` `Atlassian` `Swiggy`
 
@@ -69,12 +106,30 @@ function debounceAdvanced(fn, delay, { leading = false } = {}) {
 }
 ```
 
+**Pitfalls:** Forgetting to preserve `this`/`args`; not exposing a `cancel` method for cleanup on unmount;
+confusing leading vs. trailing edge behavior.
+
 ---
 
 ## 2. Throttle
 
-**What:** Ensures a function runs at most once every `limit` milliseconds, regardless of how many times
-it's triggered. Useful for scroll, mousemove, and infinite-scroll handlers.
+**What:** Ensures a function runs **at most once every `limit` milliseconds**, no matter how many times
+it's triggered. Unlike debounce (which waits for a pause), throttle fires at a **steady cadence** during
+continuous activity.
+
+**When to use it:**
+- The event fires continuously and you want **regular updates**, not just the final one.
+- You need to **cap the rate** of an expensive handler to protect performance.
+- Dropping *some* intermediate events is fine, but you can't wait for activity to fully stop.
+
+**Real-world use cases:**
+- **Scroll handlers** — update a sticky header / "scroll progress" bar every ~100ms.
+- **Infinite scroll** — check "near bottom?" at a fixed rate instead of on every scroll tick.
+- **Mousemove / drag-and-drop** — update element position smoothly without flooding the main thread.
+- **Rate-limiting API calls** behind a button that can be mashed.
+
+**Debounce vs. Throttle:** Debounce = "wait until it's quiet, then act once." Throttle = "act on a fixed
+heartbeat while it's noisy." Search box → debounce. Scroll position → throttle.
 
 **Tags:** `Amazon` `Google` `Meta` `Uber` `Walmart` `Razorpay` `Adobe`
 
@@ -104,6 +159,9 @@ function throttleByTime(fn, limit) {
 }
 ```
 
+**Pitfalls:** Missing the **trailing call** (the very last event may be dropped); mixing up throttle with
+debounce semantics in the explanation.
+
 ---
 
 ## 3. Currying
@@ -111,7 +169,18 @@ function throttleByTime(fn, limit) {
 **What:** Transform a function `f(a, b, c)` so it can be called as `f(a)(b)(c)` or `f(a, b)(c)`, etc.
 A classic test of closures and recursion.
 
-**Tags:** `Microsoft` `Adobe` `PayPal` `Cred` ` Flipkart` `Oracle` `ServiceNow`
+**When to use it:**
+- You want to **fix some arguments now** and supply the rest later (partial application).
+- You're building **reusable, specialized functions** from a generic one.
+- You want cleaner **point-free / functional pipelines** where functions take one argument at a time.
+
+**Real-world use cases:**
+- **Configuration helpers** — `const log = curriedLog("ERROR"); log("disk full")`.
+- **Event handler factories** — `const onClick = handleClick(itemId)` in React lists.
+- **Reusable validators / formatters** — `const toUSD = formatCurrency("USD")`.
+- Libraries like **Ramda/Lodash-fp** rely heavily on currying for composition.
+
+**Tags:** `Microsoft` `Adobe` `PayPal` `Cred` `Flipkart` `Oracle` `ServiceNow`
 
 ```js
 function curry(fn) {
@@ -131,12 +200,28 @@ curriedSum(1, 2)(3);   // 6
 curriedSum(1)(2, 3);   // 6
 ```
 
+**Pitfalls:** Relying on `fn.length` breaks with default/rest params; not handling multiple args per call.
+
 ---
 
 ## 4. Deep Clone
 
 **What:** Create a fully independent copy of an object, handling nested objects, arrays, `Date`, `Map`,
-`Set`, and circular references. Tests memory/reference understanding.
+`Set`, and **circular references**. Tests memory/reference understanding.
+
+**When to use it:**
+- You must **mutate a copy** without affecting the original (shallow copy / spread isn't enough).
+- The data is **deeply nested** and shares references you don't want leaking.
+- You need **snapshots** of state for undo/redo, time-travel, or comparison.
+
+**Real-world use cases:**
+- **Immutable state updates** in Redux/Vuex when nested objects change.
+- **Undo/redo history** — store independent snapshots of a document/canvas.
+- **Cloning default config/templates** before customizing per user.
+- **Caching API responses** so downstream mutations don't corrupt the cache.
+
+> In modern environments prefer `structuredClone()` for most cases; interviewers ask you to *implement*
+> it to test understanding, and because it doesn't clone functions/DOM nodes.
 
 **Tags:** `Amazon` `Google` `Uber` `Microsoft` `Atlassian` `Salesforce`
 
@@ -169,11 +254,26 @@ function deepClone(value, seen = new WeakMap()) {
 }
 ```
 
+**Pitfalls:** `JSON.parse(JSON.stringify(obj))` loses `undefined`, functions, `Date` (becomes string),
+`Map`/`Set`, and throws on circular refs — mention this trade-off.
+
 ---
 
 ## 5. Function Composition (compose & pipe)
 
-**What:** Combine multiple functions into one. `compose` runs right-to-left; `pipe` runs left-to-right.
+**What:** Combine multiple functions into one. `compose` runs **right-to-left**; `pipe` runs
+**left-to-right**.
+
+**When to use it:**
+- You have several **small, single-purpose, pure** transformations to apply in sequence.
+- You want to **name a pipeline** of steps rather than nesting calls or using temp variables.
+- You're embracing a **functional style** and want reusable, testable building blocks.
+
+**Real-world use cases:**
+- **Data transformation pipelines** — `pipe(parse, normalize, validate, save)`.
+- **Middleware chains** (Redux middleware, Express-style handlers) compose via this pattern.
+- **String/number formatting** — `pipe(trim, toLowerCase, slugify)`.
+- **Selectors** that derive view data from raw state in steps.
 
 **Tags:** `Meta` `Adobe` `Uber` `ThoughtWorks` `Gojek`
 
@@ -188,11 +288,26 @@ compose(add2, double)(5); // add2(double(5)) = 12
 pipe(add2, double)(5);    // double(add2(5)) = 14
 ```
 
+**Pitfalls:** Order confusion (compose is right-to-left); only threads a single value — multi-arg steps
+need currying/adapters.
+
 ---
 
 ## 6. Memoization
 
-**What:** Cache results of expensive function calls keyed by arguments. Tests closures and caching.
+**What:** Cache results of expensive function calls keyed by their arguments, returning the cached result
+on repeat inputs. Tests closures and caching.
+
+**When to use it:**
+- The function is **pure** (same input ⇒ same output, no side effects).
+- It's **computationally expensive** or called **repeatedly with the same inputs**.
+- You can afford the **extra memory** to store results.
+
+**Real-world use cases:**
+- **Expensive calculations** — Fibonacci, factorial, layout/geometry math.
+- **Derived data in UI** — React's `useMemo` / Reselect selectors avoid recomputing on every render.
+- **Caching pure API request transformations** keyed by params.
+- **Dynamic programming** solutions (top-down memoized recursion).
 
 **Tags:** `Amazon` `Google` `Microsoft` `Flipkart` `Intuit`
 
@@ -209,11 +324,24 @@ function memoize(fn) {
 }
 ```
 
+**Pitfalls:** `JSON.stringify` keys fail for functions/circular args and ignore arg order subtleties;
+unbounded cache can leak memory (consider an LRU/size cap); never memoize impure functions.
+
 ---
 
 ## 7. Polyfill: Array.prototype.map
 
-**What:** Re-implement `map` from scratch. Gateway question for `filter`, `forEach`, `reduce`.
+**What:** Re-implement `map` from scratch. Gateway question that leads into `filter`, `forEach`, `reduce`.
+
+**When to use it (polyfills in general):**
+- You must **support legacy browsers/runtimes** that lack a modern method.
+- You want to **demonstrate deep understanding** of how the built-in behaves (callback signature,
+  `thisArg`, sparse arrays, immutability).
+
+**Real-world use cases:**
+- Shipping libraries that **run in old environments** (older IE, embedded WebViews).
+- **Babel/core-js** style transpilation polyfills for newer Array/String/Promise APIs.
+- Building a **mental model** of the standard library that helps debug edge cases.
 
 **Tags:** `Amazon` `Walmart` `Paytm` `Flipkart` `Zomato`
 
@@ -228,11 +356,21 @@ Array.prototype.myMap = function (callback, thisArg) {
 };
 ```
 
+**Pitfalls:** Skipping the `thisArg`, ignoring **sparse arrays** (`i in this`), or mutating the source.
+
 ---
 
 ## 8. Polyfill: Array.prototype.reduce
 
-**What:** Re-implement `reduce`, correctly handling the optional initial value.
+**What:** Re-implement `reduce`, correctly handling the **optional initial value** (and the empty-array
+error case).
+
+**When to use it:** Same rationale as map polyfills — legacy support and demonstrating mastery of the
+trickiest array method (initial-value semantics trip many people up).
+
+**Real-world use cases:**
+- The foundation under **sum/group-by/flatten/compose** implementations.
+- Building **aggregation utilities** (totals, frequency maps, pipelines).
 
 **Tags:** `Amazon` `Microsoft` `Uber` `PhonePe`
 
@@ -255,11 +393,25 @@ Array.prototype.myReduce = function (callback, initialValue) {
 };
 ```
 
+**Pitfalls:** Not distinguishing "no initial value provided" (use `arguments.length`, not `!initialValue`);
+not throwing on empty array with no initial value.
+
 ---
 
 ## 9. Polyfill: Function.prototype.bind / call / apply
 
-**What:** Re-implement `this`-binding utilities. Tests deep understanding of `this`.
+**What:** Re-implement the `this`-binding utilities. Tests deep understanding of `this` and execution
+context.
+
+**When to use it:**
+- You need to **fix `this`** for a callback (event handlers, `setTimeout`, passing methods around).
+- You want **partial application** (pre-bound arguments) via `bind`.
+- Demonstrating you understand how the engine resolves `this`.
+
+**Real-world use cases:**
+- **Pre-React class components** binding methods in the constructor (`this.handleClick.bind(this)`).
+- **Borrowing methods** — `Array.prototype.slice.call(arguments)` to arrayify array-likes.
+- **Function.prototype.apply** to spread args (`Math.max.apply(null, arr)` pre-spread syntax).
 
 **Tags:** `Google` `Microsoft` `Amazon` `Adobe` `Cred` `Razorpay`
 
@@ -285,11 +437,23 @@ Function.prototype.myBind = function (context, ...boundArgs) {
 };
 ```
 
+**Pitfalls:** Polluting the context object (use a `Symbol` and `delete`); not handling `new` with a bound
+function; forgetting to merge bound + call-time args.
+
 ---
 
 ## 10. Promise.all Polyfill
 
-**What:** Resolve when all promises resolve (preserving order); reject as soon as any rejects.
+**What:** Resolve when **all** promises resolve (preserving input order); reject as soon as **any** rejects.
+
+**When to use it:**
+- You have **independent async tasks** and need **all** results before continuing.
+- A single failure should **abort** the whole batch (fail-fast).
+
+**Real-world use cases:**
+- **Parallel API calls** for a dashboard — fetch user, settings, and notifications together.
+- **Loading multiple resources** (images, scripts, config) before rendering.
+- **Batch DB queries** that must all succeed for a transaction-like flow.
 
 **Tags:** `Amazon` `Google` `Uber` `Atlassian` `Meta` `Swiggy`
 
@@ -314,11 +478,27 @@ function promiseAll(promises) {
 }
 ```
 
+**Pitfalls:** Losing **result order** (use the index, not push); not wrapping non-promise values with
+`Promise.resolve`; forgetting the empty-array case.
+
 ---
 
 ## 11. Promise.allSettled / race / any
 
-**What:** Common follow-ups to `Promise.all`.
+**What:** The common follow-ups to `Promise.all`, each with different "done" rules:
+- **allSettled** — wait for all, never rejects; reports each outcome.
+- **race** — settles as soon as the **first** promise settles (resolve *or* reject).
+- **any** — resolves on the **first fulfillment**; rejects only if **all** reject.
+
+**When to use it:**
+- **allSettled** — you want **every** result even if some fail (no fail-fast).
+- **race** — you care about the **fastest** outcome, or want a **timeout**.
+- **any** — you want the **first success** and can tolerate some failures.
+
+**Real-world use cases:**
+- **allSettled** — fire several analytics/notification calls; log which failed but don't block.
+- **race** — `Promise.race([fetchData(), timeout(5000)])` to enforce a request timeout.
+- **any** — query **multiple mirrors/CDNs** and use whichever responds successfully first.
 
 **Tags:** `Amazon` `Microsoft` `Uber` `Meta` `Salesforce`
 
@@ -357,11 +537,23 @@ function promiseAny(promises) {
 }
 ```
 
+**Pitfalls:** Confusing `race` (first to settle, even rejection) with `any` (first to **fulfill**).
+
 ---
 
 ## 12. Promisify
 
-**What:** Convert a Node-style callback function `(err, data) => {}` into a promise-returning function.
+**What:** Convert a Node-style callback function `(err, data) => {}` into a **promise-returning** function
+so it works with `async/await`.
+
+**When to use it:**
+- You're consuming an **older callback-based API** but want modern async syntax.
+- You want to **compose** callback APIs with `Promise.all`, `await`, etc.
+
+**Real-world use cases:**
+- Wrapping legacy **Node core APIs** (`fs.readFile`) — Node ships `util.promisify` for exactly this.
+- Modernizing **third-party SDKs** that still use callbacks.
+- Turning **`setTimeout`** into an awaitable `delay(ms)` helper.
 
 **Tags:** `Microsoft` `Amazon` `Oracle` `ServiceNow`
 
@@ -378,11 +570,25 @@ function promisify(fn) {
 }
 ```
 
+**Pitfalls:** Losing `this` binding; assuming the callback is always `(err, data)` (some APIs differ).
+
 ---
 
 ## 13. EventEmitter (Pub/Sub)
 
-**What:** Implement `on`, `off`, `emit`, and `once`. Tests OOP and data-structure design.
+**What:** Implement `on`, `off`, `emit`, and `once`. A subject lets parts of the app **subscribe** to named
+events and get **notified** when they fire. Tests OOP and data-structure design.
+
+**When to use it:**
+- Components need to communicate but should stay **decoupled** (no direct references).
+- You have a **one-to-many** relationship — one event, many interested listeners.
+- You want **dynamic** subscribe/unsubscribe at runtime.
+
+**Real-world use cases:**
+- **Node.js** core is built on `EventEmitter` (streams, sockets, HTTP servers).
+- **DOM events** and custom event buses in front-end apps.
+- **Cross-component messaging** — e.g., a global "user-logged-out" event many widgets react to.
+- **WebSocket / real-time** message dispatching.
 
 **Tags:** `Amazon` `Uber` `Atlassian` `Meta` `Flipkart` `Cred`
 
@@ -412,11 +618,23 @@ class EventEmitter {
 }
 ```
 
+**Pitfalls:** Memory leaks from never unsubscribing; iterating while mutating the listener set; `once`
+wrapper must remove the **wrapper**, not the original callback.
+
 ---
 
 ## 14. Flatten a Nested Array
 
-**What:** Flatten arbitrarily nested arrays to a given depth. Tests recursion.
+**What:** Flatten arbitrarily nested arrays to a given depth. Tests recursion (and an iterative follow-up).
+
+**When to use it:**
+- Your data arrives **nested** but you need a **flat list** to render/iterate/aggregate.
+- You need control over **how deep** to flatten.
+
+**Real-world use cases:**
+- **Normalizing tree/menu/category data** into a flat list for search or rendering.
+- **Combining paginated/grouped API results** (`[[...], [...]]`) into one array.
+- **Comment threads / nested replies** flattened for display.
 
 **Tags:** `Amazon` `Google` `Microsoft` `Walmart` `PayPal`
 
@@ -445,11 +663,25 @@ function flattenIterative(arr) {
 }
 ```
 
+**Pitfalls:** Stack overflow on very deep arrays (offer the iterative version); honoring the `depth` arg.
+
 ---
 
 ## 15. Retry with Backoff
 
-**What:** Retry a failing async operation N times, often with exponential backoff. Tests async control flow.
+**What:** Retry a failing async operation N times, often with **exponential backoff** between attempts.
+Tests async control flow and error handling.
+
+**When to use it:**
+- Failures are **transient/intermittent** (network blips, rate limits, cold starts).
+- The operation is **idempotent** (safe to repeat without side effects).
+- A short delay is likely to let the issue **resolve itself**.
+
+**Real-world use cases:**
+- **Flaky network requests** — retry a fetch a few times before surfacing an error.
+- **Rate-limited APIs (HTTP 429)** — back off and retry instead of failing immediately.
+- **Connecting to a DB/queue** that may not be ready yet at startup.
+- **Cloud SDK calls** (most AWS/GCP SDKs have built-in retry with backoff).
 
 **Tags:** `Amazon` `Uber` `Stripe` `Atlassian` `Razorpay`
 
@@ -470,11 +702,25 @@ async function retry(fn, retries = 3, delay = 500) {
 }
 ```
 
+**Pitfalls:** Retrying **non-idempotent** operations (double charges!); no cap/jitter causing thundering
+herd; retrying errors that will never succeed (e.g., 400/auth errors).
+
 ---
 
 ## 16. Singleton Pattern
 
-**What:** Guarantee a class has only one instance with a global access point. Classic design pattern.
+**What:** Guarantee a class has **only one instance** with a single global access point. Classic design
+pattern.
+
+**When to use it:**
+- Exactly **one shared instance** should exist across the app.
+- That instance manages **shared/global state or a costly resource**.
+
+**Real-world use cases:**
+- **App configuration / feature flags** loaded once and read everywhere.
+- **Database connection pool** or HTTP client reused across the app.
+- **Logger** or **caching layer** shared by all modules.
+- **Redux store** is effectively a singleton source of truth.
 
 **Tags:** `Microsoft` `Oracle` `SAP` `Adobe`
 
@@ -494,12 +740,28 @@ const b = new Config();
 console.log(a === b); // true
 ```
 
+**Pitfalls:** Singletons act as **hidden global state** — they hurt testability and can cause coupling;
+mention this trade-off. (In JS, a frozen module-level object is often a simpler "singleton".)
+
 ---
 
 ## 17. Observer Pattern
 
-**What:** A subject maintains a list of observers and notifies them of state changes. Foundation of
-reactive UIs and state libraries.
+**What:** A subject maintains a list of observers and **notifies** them of state changes. Foundation of
+reactive UIs and state libraries. (EventEmitter is a close cousin — observers register interest and react.)
+
+**When to use it:**
+- One object's **state change** must automatically update **many dependents**.
+- You want **loose coupling** between the source of truth and its consumers.
+
+**Real-world use cases:**
+- **Reactivity systems** — Vue's reactivity, MobX, RxJS observables.
+- **UI bindings** — model changes auto-update the views watching it.
+- **Stock tickers / live dashboards** — many widgets observe one data stream.
+- **Notification systems** — subscribers get pushed updates.
+
+**Observer vs. Pub/Sub:** Observer usually means observers are **directly registered** on the subject;
+Pub/Sub adds an **event-channel/broker** in between for fuller decoupling.
 
 **Tags:** `Amazon` `Meta` `Adobe` `ThoughtWorks`
 
@@ -520,11 +782,26 @@ class Subject {
 }
 ```
 
+**Pitfalls:** Forgetting to unsubscribe (leaks); errors in one observer breaking the notify loop (wrap in
+try/catch if needed).
+
 ---
 
 ## 18. Factory Pattern
 
-**What:** Delegate object creation to a factory function/method instead of using `new` directly.
+**What:** Delegate object creation to a factory function/method instead of calling `new` directly,
+centralizing the "which object to build" logic.
+
+**When to use it:**
+- Object creation is **complex** or depends on **runtime conditions/config**.
+- You want callers to depend on an **interface**, not concrete classes.
+- You need to **swap implementations** without touching call sites.
+
+**Real-world use cases:**
+- **UI component factories** — build a widget based on a `type` from server config.
+- **Cross-platform abstractions** — return the right notification/storage impl per environment.
+- **Parsers/loaders** — pick a handler based on file type (`.csv` vs `.json`).
+- **Database/driver selection** — create the correct client from a connection string.
 
 **Tags:** `Microsoft` `Oracle` `SAP` `Walmart`
 
@@ -541,6 +818,9 @@ function shapeFactory(type, options) {
 }
 ```
 
+**Pitfalls:** Letting the factory grow into a giant switch (consider a registry/map, as above); over-using
+it where a plain constructor would do.
+
 ---
 
 ## How to Practice
@@ -548,9 +828,10 @@ function shapeFactory(type, options) {
 1. **Implement from scratch** without looking at the solution.
 2. **Handle edge cases** — empty inputs, `this` binding, circular references, sparse arrays.
 3. **Be ready for follow-ups** — "now add a `cancel` method", "make it leading-edge", "avoid recursion".
-4. **Explain trade-offs** — time/space complexity, when to use debounce vs throttle, etc.
+4. **Explain when and why** — interviewers care as much about *choosing* the right pattern as coding it.
+5. **Explain trade-offs** — time/space complexity, debounce vs throttle, singleton's hidden-state cost, etc.
 
 ---
 
-*Contributions welcome. Add new patterns following the same format: explanation, company tags, and a
-clean, commented implementation.*
+*Contributions welcome. Add new patterns following the same format: What → When to use → Use cases →
+Company tags → Implementation → Pitfalls.*
