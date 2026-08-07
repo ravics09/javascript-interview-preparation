@@ -4,8 +4,17 @@ A companion to [`dsa-pattern.md`](./dsa-pattern.md). Where that file teaches you
 this file gives you **many worked interview problems** for each pattern — with full JavaScript solutions
 and detailed reasoning.
 
-Every problem follows the same structure: **Problem → Company tags → Why this is a `<pattern>` problem →
-Approach → Solution (JavaScript) → Complexity → 💡 Interview tip**.
+Every problem in **Patterns 1–15** follows the same structure: **Problem → Company tags → Why this is a
+`<pattern>` problem → Solution 1: Brute Force (Approach → Code → Complexity) → Solution 2: Optimized
+(Approach → Code → Complexity) → 💡 Interview tip**. Patterns 16–22 are still in the original
+single-solution format (see the scope note before Pattern 16) and are planned for the same treatment in a
+follow-up update.
+
+> **Note on two solutions:** Interviewers almost always want to see you start from a correct brute-force
+> idea and *reason your way* to the optimal one. For every problem in Patterns 1–15, **Solution 1** is a
+> simple, always-correct approach (often O(n²) or using extra space) that you can produce under pressure,
+> and **Solution 2** is the pattern-specific optimal approach this file is organized around. State the
+> trade-off out loud even if you only have time to code the optimal one.
 
 > **Note on company tags:** Tags are *indicative*, compiled from widely shared interview experiences. They
 > mean "this kind of company asks this kind of question," not a guarantee.
@@ -231,6 +240,7 @@ Use this index to memorize the patterns and the questions under each. Click any 
 
 ---
 
+
 ## 1. Sliding Window
 
 ### 1.1 Maximum Sum Subarray of Size K
@@ -243,8 +253,31 @@ subarray of size `k`.
 **Why this is a Sliding Window problem:** It asks for an optimal value over a **contiguous, fixed-size**
 range; adjacent windows overlap by `k-1` elements, so we reuse work instead of recomputing.
 
+#### Solution 1: Brute Force
+
+**Approach:** For every starting index, sum the next `k` elements from scratch and track the maximum. This
+recomputes the overlapping portion of each window every time, but it's the natural first idea and a safe
+starting point to state out loud before optimizing.
+
+```js
+function maxSumSubarrayBrute(arr, k) {
+  let maxSum = -Infinity;
+  for (let start = 0; start <= arr.length - k; start++) {
+    let sum = 0;
+    for (let i = start; i < start + k; i++) sum += arr[i];
+    maxSum = Math.max(maxSum, sum);
+  }
+  return maxSum;
+}
+// maxSumSubarrayBrute([2,1,5,1,3,2], 3) -> 9
+```
+
+**Complexity:** Time **O(n·k)** (n-k+1 windows, each summed in O(k)), Space **O(1)**.
+
+#### Solution 2: Optimized (Sliding Window)
+
 **Approach:** Seed the sum of the first `k` elements, then slide — add the incoming element and subtract
-the outgoing one — tracking the max.
+the outgoing one — tracking the max. Each step does O(1) work instead of re-summing the whole window.
 
 ```js
 function maxSumSubarray(arr, k) {
@@ -276,8 +309,34 @@ contiguous subarray whose sum is ≥ `S` (0 if none).
 **Why this is a Sliding Window problem:** Smallest *contiguous* range satisfying a sum condition → a
 **variable-size** window that grows to meet the target, then shrinks to minimize length.
 
+#### Solution 1: Brute Force
+
+**Approach:** Check every subarray's sum directly: for each start index, extend the end until the running
+sum reaches `S`, recording the length, then move to the next start. This is the direct translation of the
+problem statement into code, with no reuse of previous sums across starts.
+
+```js
+function smallestSubarrayWithSumBrute(arr, S) {
+  let minLen = Infinity;
+  for (let start = 0; start < arr.length; start++) {
+    let sum = 0;
+    for (let end = start; end < arr.length; end++) {
+      sum += arr[end];
+      if (sum >= S) { minLen = Math.min(minLen, end - start + 1); break; }
+    }
+  }
+  return minLen === Infinity ? 0 : minLen;
+}
+// smallestSubarrayWithSumBrute([2,1,5,2,3,2], 7) -> 2
+```
+
+**Complexity:** Time **O(n²)** worst case, Space **O(1)**.
+
+#### Solution 2: Optimized (Sliding Window)
+
 **Approach:** Expand `end` adding to the sum; while the sum ≥ `S`, record the window length and shrink from
-`start`.
+`start`. Because values are positive, shrinking always decreases the sum predictably, so every element is
+only added once and removed at most once.
 
 ```js
 function smallestSubarrayWithSum(arr, S) {
@@ -310,8 +369,34 @@ With negatives you'd need prefix sums instead.
 **Why this is a Sliding Window problem:** Longest contiguous substring under a "no repeats" constraint —
 the window grows while valid and jumps forward when a repeat appears.
 
+#### Solution 1: Brute Force
+
+**Approach:** Check every possible substring, using a `Set` to verify it has no repeated characters, and
+track the longest valid one found. Straightforward but re-validates overlapping substrings from scratch.
+
+```js
+function lengthOfLongestSubstringBrute(s) {
+  let maxLen = 0;
+  for (let start = 0; start < s.length; start++) {
+    const seen = new Set();
+    for (let end = start; end < s.length; end++) {
+      if (seen.has(s[end])) break;
+      seen.add(s[end]);
+      maxLen = Math.max(maxLen, end - start + 1);
+    }
+  }
+  return maxLen;
+}
+// lengthOfLongestSubstringBrute("abcabcbb") -> 3
+```
+
+**Complexity:** Time **O(n²)** (up to n starts, each scanning up to n chars), Space **O(min(n, charset))**.
+
+#### Solution 2: Optimized (Sliding Window)
+
 **Approach:** Track each char's last index; when a char repeats inside the window, move `start` past its
-previous position.
+previous position instead of restarting the scan. This makes `start` and `end` each traverse the string at
+most once.
 
 ```js
 function lengthOfLongestSubstring(s) {
@@ -344,7 +429,35 @@ window — the most common bug.
 **Why this is a Sliding Window problem:** "Longest substring under a distinct-count constraint" → variable
 window with a frequency map that triggers shrinking when distinct keys exceed `k`.
 
+#### Solution 1: Brute Force
+
+**Approach:** For each starting index, extend the substring while counting distinct characters in a `Set`;
+stop extending once distinct count exceeds `k`, then move on to the next start. Re-derives distinct counts
+for every start from scratch.
+
+```js
+function longestKDistinctBrute(s, k) {
+  if (k === 0) return 0;
+  let maxLen = 0;
+  for (let start = 0; start < s.length; start++) {
+    const seen = new Set();
+    for (let end = start; end < s.length; end++) {
+      seen.add(s[end]);
+      if (seen.size > k) break;
+      maxLen = Math.max(maxLen, end - start + 1);
+    }
+  }
+  return maxLen;
+}
+// longestKDistinctBrute("araaci", 2) -> 4
+```
+
+**Complexity:** Time **O(n²)**, Space **O(k)** per inner scan.
+
+#### Solution 2: Optimized (Sliding Window)
+
 **Approach:** Expand and count chars; while map size > `k`, shrink from the left and delete zeroed counts.
+The frequency map lets us know in O(1) whether the window is still valid, avoiding the need to rescan.
 
 ```js
 function longestKDistinct(s, k) {
@@ -382,7 +495,34 @@ types into 2 baskets. Find the maximum number of fruits (longest subarray with a
 **Why this is a Sliding Window problem:** It's literally "longest subarray with at most 2 distinct" — a
 special case of 1.4 with `k = 2`.
 
-**Approach:** Same as K-distinct with `k = 2`.
+#### Solution 1: Brute Force
+
+**Approach:** For every start index, extend the window while tracking distinct fruit types in a `Set`,
+stopping once a third type would be needed. Simple to reason about, but redundant across overlapping
+starts.
+
+```js
+function totalFruitBrute(fruits) {
+  let maxLen = 0;
+  for (let start = 0; start < fruits.length; start++) {
+    const seen = new Set();
+    for (let end = start; end < fruits.length; end++) {
+      seen.add(fruits[end]);
+      if (seen.size > 2) break;
+      maxLen = Math.max(maxLen, end - start + 1);
+    }
+  }
+  return maxLen;
+}
+// totalFruitBrute([1,2,1,2,3]) -> 4
+```
+
+**Complexity:** Time **O(n²)**, Space **O(1)** (at most 3 keys tracked at a time).
+
+#### Solution 2: Optimized (Sliding Window)
+
+**Approach:** Same as K-distinct with `k = 2`: maintain a frequency map of fruit types in the current
+window and shrink from the left whenever a third type appears.
 
 ```js
 function totalFruit(fruits) {
@@ -419,8 +559,36 @@ that is an anagram of `s1`).
 **Why this is a Sliding Window problem:** We slide a **fixed-size window** of length `s1.length` over `s2`,
 checking whether the window's character counts match `s1`'s.
 
+#### Solution 1: Brute Force
+
+**Approach:** For every possible window of length `s1.length` in `s2`, build a fresh frequency count and
+compare it against `s1`'s frequency count. Correct and easy to explain, but recomputes counts for every
+window from scratch.
+
+```js
+function checkInclusionBrute(s1, s2) {
+  const n = s1.length;
+  if (n > s2.length) return false;
+  const need = {};
+  for (const c of s1) need[c] = (need[c] || 0) + 1;
+  for (let start = 0; start <= s2.length - n; start++) {
+    const window = {};
+    for (let i = start; i < start + n; i++) window[s2[i]] = (window[s2[i]] || 0) + 1;
+    if (Object.keys(need).every(c => need[c] === window[c])) return true;
+  }
+  return false;
+}
+// checkInclusionBrute("ab", "eidbaooo") -> true
+```
+
+**Complexity:** Time **O(n·(m-n))** ≈ **O(n·m)** (building/comparing a count map per window), Space
+**O(1)** (bounded charset).
+
+#### Solution 2: Optimized (Sliding Window)
+
 **Approach:** Build a need-count for `s1`. Slide a window of size `s1.length`, maintaining counts and a
-`matched` counter; when all required counts match, return true.
+`matched` counter; when all required counts match, return true. This avoids rebuilding the whole map by
+updating just the entering/leaving character each step.
 
 ```js
 function checkInclusion(s1, s2) {
@@ -466,8 +634,39 @@ the longest substring containing the same letter after replacements.
 **Why this is a Sliding Window problem:** Window is valid while `(windowLength − countOfMostFrequentChar) ≤
 k` (the chars we'd need to replace). Expand while valid; shrink otherwise.
 
+#### Solution 1: Brute Force
+
+**Approach:** For every substring, count character frequencies and check whether
+`length - maxFrequency <= k`; track the longest one that qualifies. Directly implements the problem's
+definition of validity without any incremental reuse.
+
+```js
+function characterReplacementBrute(s, k) {
+  let maxLen = 0;
+  for (let start = 0; start < s.length; start++) {
+    const count = new Map();
+    let maxFreq = 0;
+    for (let end = start; end < s.length; end++) {
+      count.set(s[end], (count.get(s[end]) || 0) + 1);
+      maxFreq = Math.max(maxFreq, count.get(s[end]));
+      const len = end - start + 1;
+      if (len - maxFreq <= k) maxLen = Math.max(maxLen, len);
+      else break;
+    }
+  }
+  return maxLen;
+}
+// characterReplacementBrute("AABABBA", 1) -> 4
+```
+
+**Complexity:** Time **O(n²)**, Space **O(1)** (bounded alphabet).
+
+#### Solution 2: Optimized (Sliding Window)
+
 **Approach:** Track char counts and the max single-char frequency in the window. If the window needs more
-than `k` replacements, shrink it.
+than `k` replacements, shrink it. We never need to decrease `maxFreq` on shrink because the answer only
+grows when a strictly better window is found, so a stale `maxFreq` can't produce a wrong (too-large)
+answer.
 
 ```js
 function characterReplacement(s, k) {
@@ -495,6 +694,7 @@ better window exists, so a stale `maxFreq` doesn't cause wrong results.
 
 ---
 
+
 ## 2. Two Pointers
 
 ### 2.1 Pair with Target Sum (Sorted Array)
@@ -506,7 +706,29 @@ better window exists, so a stale `maxFreq` doesn't cause wrong results.
 **Why this is a Two Pointers problem:** Sorted input means moving a pointer predictably changes the sum, so
 two converging pointers find the answer in one pass.
 
-**Approach:** Left/right pointers; if sum too small move left up, too big move right down.
+#### Solution 1: Brute Force
+
+**Approach:** Check every pair of indices with a nested loop, testing if they sum to the target. It works
+on unsorted input too and needs no extra structure, but ignores the fact that the array is sorted.
+
+```js
+function pairWithTargetSumBrute(arr, target) {
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = i + 1; j < arr.length; j++) {
+      if (arr[i] + arr[j] === target) return [i, j];
+    }
+  }
+  return [-1, -1];
+}
+// pairWithTargetSumBrute([1,2,3,4,6], 6) -> [1,3]
+```
+
+**Complexity:** Time **O(n²)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Two Pointers)
+
+**Approach:** Left/right pointers; if sum too small move left up, too big move right down. Because the
+array is sorted, each move rules out an entire portion of remaining pairs, giving a single O(n) pass.
 
 ```js
 function pairWithTargetSum(arr, target) {
@@ -536,7 +758,28 @@ function pairWithTargetSum(arr, target) {
 **Why this is a Two Pointers problem:** A slow pointer marks the last unique slot while a fast pointer
 scans ahead — same-direction two pointers for in-place rewriting.
 
-**Approach:** When `arr[fast]` differs from `arr[slow]`, advance `slow` and copy.
+#### Solution 1: Brute Force
+
+**Approach:** Collect unique values into a separate array (e.g. via a `Set`, which preserves insertion
+order for numbers/strings) and copy them back over the original array. It's correct but uses O(n) extra
+space, defeating the "in place" requirement.
+
+```js
+function removeDuplicatesBrute(arr) {
+  const unique = [...new Set(arr)];
+  for (let i = 0; i < unique.length; i++) arr[i] = unique[i];
+  return unique.length;
+}
+// removeDuplicatesBrute([2,3,3,3,6,9,9]) -> 4
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)** (extra array/set).
+
+#### Solution 2: Optimized (Two Pointers, In-Place)
+
+**Approach:** When `arr[fast]` differs from `arr[slow]`, advance `slow` and copy. Because the array is
+sorted, duplicates are always adjacent, so a single forward pass with two pointers rewrites the array with
+O(1) extra space.
 
 ```js
 function removeDuplicates(arr) {
@@ -565,7 +808,25 @@ function removeDuplicates(arr) {
 **Why this is a Two Pointers problem:** The largest squares are at the two **ends** (most negative or most
 positive). Compare ends and fill the result from the back.
 
-**Approach:** Pointers at both ends; place the larger square at the current highest free index.
+#### Solution 1: Brute Force
+
+**Approach:** Square every element, then sort the resulting array with a general-purpose sort. Correct and
+simple, but ignores the structure of the sorted input, paying full sort cost.
+
+```js
+function sortedSquaresBrute(arr) {
+  return arr.map(x => x * x).sort((a, b) => a - b);
+}
+// sortedSquaresBrute([-4,-1,0,3,10]) -> [0,1,9,16,100]
+```
+
+**Complexity:** Time **O(n log n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Two Pointers)
+
+**Approach:** Pointers at both ends; place the larger square at the current highest free index. Since the
+input is sorted, the largest-magnitude values (hence largest squares) are always at one of the two ends,
+letting us fill the result back-to-front in linear time.
 
 ```js
 function sortedSquares(arr) {
@@ -597,7 +858,35 @@ function sortedSquares(arr) {
 **Why this is a Two Pointers problem:** After sorting, fix one element and reduce to a two-pointer pair
 search on the rest.
 
-**Approach:** Sort; for each anchor, two-pointer search for `-anchor`; skip duplicates.
+#### Solution 1: Brute Force
+
+**Approach:** Try every triplet with three nested loops, and de-duplicate results using a `Set` of sorted,
+stringified triplets. Simple to reason about, but cubic and needs extra bookkeeping for uniqueness.
+
+```js
+function threeSumBrute(nums) {
+  const res = new Set();
+  const n = nums.length;
+  for (let i = 0; i < n; i++)
+    for (let j = i + 1; j < n; j++)
+      for (let k = j + 1; k < n; k++) {
+        if (nums[i] + nums[j] + nums[k] === 0) {
+          const triplet = [nums[i], nums[j], nums[k]].sort((a, b) => a - b);
+          res.add(JSON.stringify(triplet));
+        }
+      }
+  return [...res].map(s => JSON.parse(s));
+}
+// threeSumBrute([-1,0,1,2,-1,-4]) -> [[-1,-1,2],[-1,0,1]]
+```
+
+**Complexity:** Time **O(n³)** (plus set overhead), Space **O(n)** for dedup storage.
+
+#### Solution 2: Optimized (Sort + Two Pointers)
+
+**Approach:** Sort; for each anchor, two-pointer search for `-anchor`; skip duplicates. Sorting first makes
+duplicate-skipping trivial (adjacent equal values) and turns the inner search into a linear two-pointer
+scan instead of a nested loop.
 
 ```js
 function threeSum(nums) {
@@ -637,7 +926,33 @@ function threeSum(nums) {
 **Why this is a Two Pointers problem:** Same fix-one-then-two-pointer structure as 3Sum, but tracking the
 closest sum instead of an exact match.
 
+#### Solution 1: Brute Force
+
+**Approach:** Try every triplet with three nested loops and keep the sum with the smallest absolute
+difference to the target. Simple but revisits the same pair combinations without pruning.
+
+```js
+function threeSumClosestBrute(nums, target) {
+  let closest = nums[0] + nums[1] + nums[2];
+  const n = nums.length;
+  for (let i = 0; i < n; i++)
+    for (let j = i + 1; j < n; j++)
+      for (let k = j + 1; k < n; k++) {
+        const sum = nums[i] + nums[j] + nums[k];
+        if (Math.abs(sum - target) < Math.abs(closest - target)) closest = sum;
+      }
+  return closest;
+}
+// threeSumClosestBrute([-1,2,1,-4], 1) -> 2
+```
+
+**Complexity:** Time **O(n³)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Sort + Two Pointers)
+
 **Approach:** Sort; for each anchor, move two pointers, updating the closest sum by absolute difference.
+Sorting lets us decide which pointer to move (based on whether the sum is above/below target) instead of
+trying every combination.
 
 ```js
 function threeSumClosest(nums, target) {
@@ -673,7 +988,31 @@ comparing raw sums.
 **Why this is a Two Pointers problem:** Start with the widest container and move the **shorter** wall
 inward — width shrinks, so only a taller wall can improve area.
 
-**Approach:** Two ends; compute area, move the pointer at the shorter height.
+#### Solution 1: Brute Force
+
+**Approach:** Compute the area for every pair of lines and keep the maximum. Correct and exhaustive, but
+recomputes areas for pairs that could be ruled out early.
+
+```js
+function maxAreaBrute(height) {
+  let max = 0;
+  for (let i = 0; i < height.length; i++) {
+    for (let j = i + 1; j < height.length; j++) {
+      max = Math.max(max, Math.min(height[i], height[j]) * (j - i));
+    }
+  }
+  return max;
+}
+// maxAreaBrute([1,8,6,2,5,4,8,3,7]) -> 49
+```
+
+**Complexity:** Time **O(n²)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Two Pointers)
+
+**Approach:** Two ends; compute area, move the pointer at the shorter height. Moving the taller wall can
+never increase area (width shrinks and the min height can't improve), so it's always safe — and optimal —
+to move the shorter one, giving a single linear pass.
 
 ```js
 function maxArea(height) {
@@ -704,7 +1043,31 @@ increase the area.
 **Why this is a Two Pointers problem:** A slow pointer marks the next non-zero slot while a fast pointer
 scans — same-direction two pointers.
 
-**Approach:** When `nums[fast]` is non-zero, swap it into `nums[slow]` and advance `slow`.
+#### Solution 1: Brute Force
+
+**Approach:** Build a new array by first collecting all non-zero values, then padding with zeros, and copy
+it back into the original array. Correct and easy to follow, but uses O(n) extra space where an in-place
+approach exists.
+
+```js
+function moveZeroesBrute(nums) {
+  const nonZero = nums.filter(x => x !== 0);
+  const zerosCount = nums.length - nonZero.length;
+  for (let i = 0; i < nums.length; i++) {
+    nums[i] = i < nonZero.length ? nonZero[i] : 0;
+  }
+  return nums;
+}
+// moveZeroesBrute([0,1,0,3,12]) -> [1,3,12,0,0]
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)** (temporary array).
+
+#### Solution 2: Optimized (Two Pointers, In-Place)
+
+**Approach:** When `nums[fast]` is non-zero, swap it into `nums[slow]` and advance `slow`. Swapping (rather
+than overwrite-then-zero-fill) keeps relative order and requires no extra array, doing the whole
+rearrangement in one pass with O(1) space.
 
 ```js
 function moveZeroes(nums) {
@@ -726,6 +1089,7 @@ function moveZeroes(nums) {
 
 ---
 
+
 ## 3. Fast & Slow Pointers
 
 ### 3.1 Linked List Cycle Detection
@@ -737,7 +1101,32 @@ function moveZeroes(nums) {
 **Why this is a Fast & Slow Pointers problem:** A 2x-speed pointer laps a 1x pointer **inside a cycle**, so
 they meet; if the list ends, `fast` hits null — Floyd's algorithm.
 
-**Approach:** Advance slow by 1, fast by 2; meeting ⇒ cycle.
+#### Solution 1: Brute Force (Hash Set)
+
+**Approach:** Walk the list, storing each visited node in a `Set`. If a node is encountered twice, a cycle
+exists; if traversal reaches `null`, there is none. Very intuitive, but uses O(n) extra memory to record
+visited nodes.
+
+```js
+function hasCycleBrute(head) {
+  const visited = new Set();
+  let node = head;
+  while (node) {
+    if (visited.has(node)) return true;
+    visited.add(node);
+    node = node.next;
+  }
+  return false;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Floyd's Fast & Slow Pointers)
+
+**Approach:** Advance slow by 1, fast by 2; meeting ⇒ cycle. If there's a cycle, the faster pointer
+eventually laps the slower one from behind inside the loop; if there's no cycle, `fast` simply reaches the
+end. This achieves the same result with O(1) space.
 
 ```js
 function hasCycle(head) {
@@ -766,7 +1155,32 @@ function hasCycle(head) {
 **Why this is a Fast & Slow Pointers problem:** After the pointers meet, the distance math means resetting
 one pointer to head and advancing both by 1 makes them meet at the cycle start.
 
-**Approach:** Detect meeting point; reset `slow` to head; advance both by 1 until equal.
+#### Solution 1: Brute Force (Hash Set)
+
+**Approach:** Walk the list recording each node visited in a `Set` (in visiting order); the **first** node
+that's already in the set is the cycle's start, since that's the first repeat encountered. Easy to reason
+about at the cost of O(n) space.
+
+```js
+function detectCycleBrute(head) {
+  const visited = new Set();
+  let node = head;
+  while (node) {
+    if (visited.has(node)) return node;
+    visited.add(node);
+    node = node.next;
+  }
+  return null;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Floyd's Fast & Slow Pointers)
+
+**Approach:** Detect meeting point; reset `slow` to head; advance both by 1 until equal. The distance
+relationship at the meeting point guarantees that resetting one pointer to `head` and moving both one step
+at a time makes them converge exactly at the cycle's start, all in O(1) space.
 
 ```js
 function detectCycle(head) {
@@ -800,7 +1214,27 @@ reset trick.
 **Why this is a Fast & Slow Pointers problem:** When `fast` (2x) reaches the end, `slow` (1x) is exactly at
 the middle.
 
-**Approach:** Advance slow by 1, fast by 2; return slow when fast finishes.
+#### Solution 1: Brute Force (Count then Traverse)
+
+**Approach:** First pass to count total nodes, then a second pass to walk to `floor(n/2)` steps from head.
+Correct and simple, but requires traversing the list twice.
+
+```js
+function middleNodeBrute(head) {
+  let count = 0, node = head;
+  while (node) { count++; node = node.next; }
+  node = head;
+  for (let i = 0; i < Math.floor(count / 2); i++) node = node.next;
+  return node;
+}
+```
+
+**Complexity:** Time **O(n)** (two passes), Space **O(1)**.
+
+#### Solution 2: Optimized (Fast & Slow Pointers)
+
+**Approach:** Advance slow by 1, fast by 2; return slow when fast finishes. Since fast covers ground twice
+as fast, it reaches the end exactly when slow reaches the middle — found in a single pass.
 
 ```js
 function middleNode(head) {
@@ -813,7 +1247,7 @@ function middleNode(head) {
 }
 ```
 
-**Complexity:** Time **O(n)**, Space **O(1)**.
+**Complexity:** Time **O(n)** (single pass), Space **O(1)**.
 
 **💡 Interview tip:** This "find middle" is a building block for merge-sorting a list and palindrome checks.
 
@@ -828,7 +1262,33 @@ function middleNode(head) {
 **Why this is a Fast & Slow Pointers problem:** The transform sequence either reaches 1 or enters a cycle —
 detect the loop without extra memory.
 
-**Approach:** Slow does one transform, fast does two; loop until equal; happy iff value is 1.
+#### Solution 1: Brute Force (Hash Set)
+
+**Approach:** Repeatedly apply the digit-square-sum transform, storing each seen value in a `Set`. If we
+reach 1, it's happy; if we see a repeated value, we've found a cycle that never reaches 1. Simple, but
+holds every visited value in memory.
+
+```js
+function isHappyBrute(n) {
+  const next = (num) => {
+    let sum = 0;
+    while (num > 0) { const d = num % 10; sum += d * d; num = Math.floor(num / 10); }
+    return sum;
+  };
+  const seen = new Set();
+  while (n !== 1 && !seen.has(n)) { seen.add(n); n = next(n); }
+  return n === 1;
+}
+// isHappyBrute(19) -> true
+```
+
+**Complexity:** Time **O(log n)** per transform step, over the cycle length, Space **O(cycle length)**.
+
+#### Solution 2: Optimized (Fast & Slow Pointers)
+
+**Approach:** Slow does one transform, fast does two; loop until equal; happy iff value is 1. Treating the
+transform sequence as an implicit linked list lets Floyd's cycle detection find the loop (or reach 1)
+without storing any history, using O(1) space.
 
 ```js
 function isHappy(n) {
@@ -859,7 +1319,29 @@ function isHappy(n) {
 **Why this is a Fast & Slow Pointers problem:** Use fast/slow to find the middle, reverse the second half
 in place, then compare halves — combining two pointer techniques.
 
-**Approach:** Find middle (fast/slow), reverse the second half, compare node by node.
+#### Solution 1: Brute Force (Copy to Array)
+
+**Approach:** Copy all node values into an array, then compare it against its reverse (or walk pointers
+from both ends inward). Very easy to write correctly, but uses O(n) extra space for the array.
+
+```js
+function isPalindromeBrute(head) {
+  const vals = [];
+  for (let node = head; node; node = node.next) vals.push(node.val);
+  for (let i = 0, j = vals.length - 1; i < j; i++, j--) {
+    if (vals[i] !== vals[j]) return false;
+  }
+  return true;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Fast/Slow + In-place Reversal)
+
+**Approach:** Find middle (fast/slow), reverse the second half, compare node by node. Reversing only the
+second half in place lets us compare the two halves without ever copying the list into another structure,
+using only O(1) extra space (the list can optionally be restored afterward).
 
 ```js
 function isPalindrome(head) {
@@ -894,7 +1376,32 @@ modifying the array, in O(1) space.
 **Why this is a Fast & Slow Pointers problem:** Treat values as "next index" pointers; the duplicate
 creates a cycle, and the cycle's entrance is the duplicate (Floyd's on an implicit linked list).
 
+#### Solution 1: Brute Force (Hash Set)
+
+**Approach:** Scan the array once, tracking seen values in a `Set`; the first value already in the set is
+the duplicate. Straightforward, but uses O(n) extra space, which the problem explicitly disallows for the
+optimal solution.
+
+```js
+function findDuplicateBrute(nums) {
+  const seen = new Set();
+  for (const num of nums) {
+    if (seen.has(num)) return num;
+    seen.add(num);
+  }
+  return -1;
+}
+// findDuplicateBrute([1,3,4,2,2]) -> 2
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Floyd's Fast & Slow Pointers)
+
 **Approach:** Phase 1 find the meeting point; phase 2 reset one pointer to start to find the cycle entrance.
+Reframing array values as "next index" links turns the array into an implicit linked list with a cycle
+(caused by the duplicate value pointing two indices to the same place), so Floyd's algorithm finds it in
+O(1) space without modifying the array.
 
 ```js
 function findDuplicate(nums) {
@@ -926,7 +1433,43 @@ it explicitly. (Cyclic sort also solves it if array modification is allowed.)
 **Why this is a Merge Intervals problem:** It combines overlapping `[start, end]` ranges; sorting by start
 makes overlaps adjacent.
 
-**Approach:** Sort by start; extend the last merged interval when it overlaps, else push a new one.
+#### Solution 1: Brute Force
+
+**Approach:** Repeatedly scan all pairs of intervals; whenever two overlap, merge them into one and restart
+the scan, until no pair overlaps anymore. Conceptually simple, but re-scanning after every merge is
+wasteful.
+
+```js
+function mergeBrute(intervals) {
+  let list = intervals.map(iv => [...iv]);
+  let merged = true;
+  while (merged) {
+    merged = false;
+    outer:
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const [a, b] = [list[i], list[j]];
+        if (a[0] <= b[1] && b[0] <= a[1]) { // overlap
+          const combined = [Math.min(a[0], b[0]), Math.max(a[1], b[1])];
+          list.splice(j, 1); list.splice(i, 1); list.push(combined);
+          merged = true;
+          break outer;
+        }
+      }
+    }
+  }
+  return list.sort((a, b) => a[0] - b[0]);
+}
+// mergeBrute([[1,3],[2,6],[8,10],[15,18]]) -> [[1,6],[8,10],[15,18]]
+```
+
+**Complexity:** Time **O(n³)** worst case (repeated O(n²) scans), Space **O(n)**.
+
+#### Solution 2: Optimized (Sort + Single Pass)
+
+**Approach:** Sort by start; extend the last merged interval when it overlaps, else push a new one. Sorting
+guarantees any interval that overlaps the current merged one must appear immediately after it, so a single
+linear pass after the sort suffices.
 
 ```js
 function merge(intervals) {
@@ -958,8 +1501,36 @@ function merge(intervals) {
 **Why this is a Merge Intervals problem:** Insertion into sorted intervals reduces to merging the new one
 with any overlaps — a three-phase interval merge.
 
+#### Solution 1: Brute Force
+
+**Approach:** Append the new interval to the list, then run the general "merge overlapping intervals"
+routine (sort + linear merge) on the whole set. It ignores that the input was already sorted, re-sorting
+everything from scratch.
+
+```js
+function insertBrute(intervals, newInterval) {
+  const all = [...intervals, newInterval];
+  all.sort((a, b) => a[0] - b[0]);
+  const out = [];
+  for (const iv of all) {
+    if (out.length && iv[0] <= out[out.length - 1][1]) {
+      out[out.length - 1][1] = Math.max(out[out.length - 1][1], iv[1]);
+    } else {
+      out.push(iv);
+    }
+  }
+  return out;
+}
+// insertBrute([[1,3],[6,9]], [2,5]) -> [[1,5],[6,9]]
+```
+
+**Complexity:** Time **O(n log n)** (re-sorting), Space **O(n)**.
+
+#### Solution 2: Optimized (Three-Phase Linear Scan)
+
 **Approach:** Add all intervals ending before the new one; merge all overlapping into the new one; add the
-rest.
+rest. Because the input is already sorted, we never need to sort again — a single linear pass classifies
+every interval into "before", "overlapping", or "after" the new one.
 
 ```js
 function insert(intervals, newInterval) {
@@ -993,8 +1564,34 @@ function insert(intervals, newInterval) {
 **Why this is a Merge Intervals problem:** Two-pointer sweep over sorted intervals computing overlap
 ranges — an interval-merge variant.
 
+#### Solution 1: Brute Force
+
+**Approach:** Compare every interval in `A` against every interval in `B`, computing the overlap
+`[max(starts), min(ends)]` whenever one exists. Correct but ignores that both lists are sorted, so it
+checks many pairs that can never overlap.
+
+```js
+function intervalIntersectionBrute(A, B) {
+  const out = [];
+  for (const a of A) {
+    for (const b of B) {
+      const lo = Math.max(a[0], b[0]);
+      const hi = Math.min(a[1], b[1]);
+      if (lo <= hi) out.push([lo, hi]);
+    }
+  }
+  return out;
+}
+// intervalIntersectionBrute([[0,2],[5,10]], [[1,5],[8,12]]) -> [[1,2],[5,5],[8,10]]
+```
+
+**Complexity:** Time **O(m·n)**, Space **O(m·n)** worst case for output.
+
+#### Solution 2: Optimized (Two-Pointer Sweep)
+
 **Approach:** For each pair, the overlap is `[max(starts), min(ends)]`; advance the interval that ends
-first.
+first. Because both lists are individually sorted and disjoint, the interval ending earlier can never
+overlap anything further ahead in the other list, so a single linear sweep with two pointers suffices.
 
 ```js
 function intervalIntersection(A, B) {
@@ -1026,8 +1623,32 @@ function intervalIntersection(A, B) {
 **Why this is a Merge Intervals problem:** The peak number of simultaneously overlapping intervals = rooms
 needed.
 
+#### Solution 1: Brute Force
+
+**Approach:** For every meeting's start time, count how many other meetings are active at that instant
+(start ≤ time < end); the maximum such count across all start times is the answer. Directly checks
+overlap counts but repeats work checking every meeting against every other meeting.
+
+```js
+function minMeetingRoomsBrute(intervals) {
+  let maxRooms = 0;
+  for (const [s] of intervals) {
+    let active = 0;
+    for (const [s2, e2] of intervals) if (s2 <= s && s < e2) active++;
+    maxRooms = Math.max(maxRooms, active);
+  }
+  return maxRooms;
+}
+// minMeetingRoomsBrute([[0,30],[5,10],[15,20]]) -> 2
+```
+
+**Complexity:** Time **O(n²)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Sweep Line)
+
 **Approach (sweep line):** Sort starts and ends; sweep, adding a room when a meeting starts before the
-earliest end, freeing one otherwise; track the peak.
+earliest end, freeing one otherwise; track the peak. Separating and sorting starts/ends lets us process
+every "room needed" and "room freed" event in time order with a single linear sweep.
 
 ```js
 function minMeetingRooms(intervals) {
@@ -1061,7 +1682,31 @@ share rooms.
 **Why this is a Merge Intervals problem:** Sort by start; any overlap between consecutive intervals makes
 it impossible — a direct overlap check.
 
-**Approach:** Sort; if any interval starts before the previous ends, return false.
+#### Solution 1: Brute Force
+
+**Approach:** Compare every pair of meetings directly for overlap without sorting first. Correct, but
+checks many pairs that sorting would have made unnecessary.
+
+```js
+function canAttendMeetingsBrute(intervals) {
+  for (let i = 0; i < intervals.length; i++) {
+    for (let j = i + 1; j < intervals.length; j++) {
+      const [s1, e1] = intervals[i], [s2, e2] = intervals[j];
+      if (s1 < e2 && s2 < e1) return false; // overlap
+    }
+  }
+  return true;
+}
+// canAttendMeetingsBrute([[0,30],[5,10]]) -> false
+```
+
+**Complexity:** Time **O(n²)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Sort + Adjacent Check)
+
+**Approach:** Sort; if any interval starts before the previous ends, return false. After sorting by start
+time, any overlap must occur between adjacent intervals in the sorted order, so a single linear pass
+after sorting is enough.
 
 ```js
 function canAttendMeetings(intervals) {
@@ -1089,8 +1734,42 @@ function canAttendMeetings(intervals) {
 **Why this is a Merge Intervals problem:** It's interval-overlap management; a greedy choice (keep the
 interval that ends earliest) maximizes how many fit.
 
+#### Solution 1: Brute Force
+
+**Approach:** Try every subset of intervals (via recursion: keep or remove each one), and track the
+smallest number of removals that leaves a non-overlapping set. Guarantees correctness by exploring all
+possibilities, but is exponential.
+
+```js
+function eraseOverlapIntervalsBrute(intervals) {
+  const n = intervals.length;
+  let minRemovals = n;
+  function isNonOverlapping(subset) {
+    const sorted = [...subset].sort((a, b) => a[0] - b[0]);
+    for (let i = 1; i < sorted.length; i++) if (sorted[i][0] < sorted[i - 1][1]) return false;
+    return true;
+  }
+  function backtrack(i, kept) {
+    if (i === n) {
+      if (isNonOverlapping(kept)) minRemovals = Math.min(minRemovals, n - kept.length);
+      return;
+    }
+    backtrack(i + 1, kept); // remove intervals[i]
+    backtrack(i + 1, [...kept, intervals[i]]); // keep it
+  }
+  backtrack(0, []);
+  return minRemovals;
+}
+// eraseOverlapIntervalsBrute([[1,2],[2,3],[3,4],[1,3]]) -> 1
+```
+
+**Complexity:** Time **O(2ⁿ · n log n)** (explore all subsets, sort/check each), Space **O(n)** recursion.
+
+#### Solution 2: Optimized (Greedy, Sort by End)
+
 **Approach:** Sort by end; greedily keep intervals that start at/after the last kept end, count the rest as
-removals.
+removals. Sorting by **end time** (not start) means the interval that finishes earliest always leaves the
+most room for the rest, so a single greedy linear pass finds the optimal keep-set.
 
 ```js
 function eraseOverlapIntervals(intervals) {
@@ -1113,6 +1792,7 @@ intervals leaves the most room.
 
 ---
 
+
 ## 5. Cyclic Sort
 
 ### 5.1 Find the Missing Number
@@ -1124,7 +1804,29 @@ intervals leaves the most room.
 **Why this is a Cyclic Sort problem:** Values map to indices in `0..n`; placing each at its index exposes
 the gap.
 
-**Approach:** Swap each value to its index (skip `n`); the first mismatched index is the answer.
+#### Solution 1: Brute Force (Sum Formula)
+
+**Approach:** The numbers `0..n` should sum to `n(n+1)/2`; subtract the actual sum of the array from that
+to get the missing number. Very short, but relies on a formula rather than the cyclic-sort pattern, and can
+risk overflow in other languages for very large `n`.
+
+```js
+function missingNumberBrute(nums) {
+  const n = nums.length;
+  const expectedSum = (n * (n + 1)) / 2;
+  const actualSum = nums.reduce((a, b) => a + b, 0);
+  return expectedSum - actualSum;
+}
+// missingNumberBrute([4,0,3,1]) -> 2
+```
+
+**Complexity:** Time **O(n)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Cyclic Sort)
+
+**Approach:** Swap each value to its index (skip `n`); the first mismatched index is the answer. Placing
+every in-range value at its natural index directly exposes which slot is "wrong" — the pattern this whole
+category is built around, and it generalizes to "find-all" follow-ups the sum formula cannot handle.
 
 ```js
 function missingNumber(nums) {
@@ -1158,7 +1860,28 @@ function missingNumber(nums) {
 **Why this is a Cyclic Sort problem:** Bounded range `1..n` → place each value at index `value-1`; mismatched
 indices reveal missing values.
 
-**Approach:** Cyclic placement, then collect indices where `nums[i] !== i+1`.
+#### Solution 1: Brute Force (Hash Set)
+
+**Approach:** Put every array value into a `Set`, then scan `1..n` and collect any number not present in
+the set. Simple and clear, but uses O(n) extra space for the set.
+
+```js
+function findDisappearedNumbersBrute(nums) {
+  const present = new Set(nums);
+  const missing = [];
+  for (let i = 1; i <= nums.length; i++) if (!present.has(i)) missing.push(i);
+  return missing;
+}
+// findDisappearedNumbersBrute([4,3,2,7,8,2,3,1]) -> [5,6]
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Cyclic Sort, In-Place)
+
+**Approach:** Cyclic placement, then collect indices where `nums[i] !== i+1`. Rearranging the array in
+place (each value swapped toward index `value-1`) means every present number ends up in its "home" slot,
+so mismatched slots at the end reveal the missing numbers with no extra data structure.
 
 ```js
 function findDisappearedNumbers(nums) {
@@ -1175,7 +1898,7 @@ function findDisappearedNumbers(nums) {
 // findDisappearedNumbers([4,3,2,7,8,2,3,1]) -> [5,6]
 ```
 
-**Complexity:** Time **O(n)**, Space **O(1)**.
+**Complexity:** Time **O(n)**, Space **O(1)** (in place, modifying input).
 
 **💡 Interview tip:** Index-negation marking is an alternative; cyclic sort is easier to explain.
 
@@ -1190,7 +1913,31 @@ function findDisappearedNumbers(nums) {
 **Why this is a Cyclic Sort problem:** Placing each value at index `value-1`; when a value's target slot is
 already occupied by the same value, that's the duplicate.
 
-**Approach:** Cyclic placement; when `nums[i] === nums[nums[i]-1]` but indices differ, return it.
+#### Solution 1: Brute Force (Hash Set)
+
+**Approach:** Scan the array, adding each value to a `Set`; the first value already present in the set is
+the duplicate. Direct and easy, but uses O(n) extra space and modifies nothing (fine unless modification is
+disallowed *and* space is constrained).
+
+```js
+function findDuplicateCyclicBrute(nums) {
+  const seen = new Set();
+  for (const num of nums) {
+    if (seen.has(num)) return num;
+    seen.add(num);
+  }
+  return -1;
+}
+// findDuplicateCyclicBrute([1,4,4,3,2]) -> 4
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Cyclic Sort, In-Place)
+
+**Approach:** Cyclic placement; when `nums[i] === nums[nums[i]-1]` but indices differ, return it. Every
+value is pushed toward its home slot `value-1`; the duplicate is the only value that ever tries to occupy a
+slot already correctly holding itself, revealing it directly with O(1) extra space.
 
 ```js
 function findDuplicate(nums) {
@@ -1207,7 +1954,7 @@ function findDuplicate(nums) {
 // findDuplicate([1,4,4,3,2]) -> 4
 ```
 
-**Complexity:** Time **O(n)**, Space **O(1)**.
+**Complexity:** Time **O(n)**, Space **O(1)** (in place, modifying input).
 
 **💡 Interview tip:** If modifying the array is disallowed, switch to **Floyd's cycle** (see 3.6).
 
@@ -1222,7 +1969,29 @@ function findDuplicate(nums) {
 **Why this is a Cyclic Sort problem:** Bounded range mapping to indices; after placement, mismatched slots
 hold duplicates.
 
-**Approach:** Cyclic placement; collect `nums[i]` where `nums[i] !== i+1`.
+#### Solution 1: Brute Force (Hash Map)
+
+**Approach:** Count the frequency of every value in a map, then collect the values whose count is exactly
+2. Very direct, but uses O(n) extra space for the frequency map.
+
+```js
+function findDuplicatesBrute(nums) {
+  const freq = new Map();
+  for (const num of nums) freq.set(num, (freq.get(num) || 0) + 1);
+  const dups = [];
+  for (const [num, count] of freq) if (count === 2) dups.push(num);
+  return dups;
+}
+// findDuplicatesBrute([4,3,2,7,8,2,3,1]) -> [2,3]
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Cyclic Sort, In-Place)
+
+**Approach:** Cyclic placement; collect `nums[i]` where `nums[i] !== i+1`. As with 5.2, placing every value
+at its home index in place means only duplicated values end up "displaced" at the end, so a final scan
+collects them with O(1) extra space.
 
 ```js
 function findDuplicates(nums) {
@@ -1239,7 +2008,7 @@ function findDuplicates(nums) {
 // findDuplicates([4,3,2,7,8,2,3,1]) -> [2,3]
 ```
 
-**Complexity:** Time **O(n)**, Space **O(1)**.
+**Complexity:** Time **O(n)**, Space **O(1)** (in place, modifying input).
 
 **💡 Interview tip:** Same skeleton as 5.2 — only the final collection step differs.
 
@@ -1254,7 +2023,29 @@ function findDuplicates(nums) {
 **Why this is a Cyclic Sort problem:** The answer lies in `1..n+1`; placing each in-range positive at its
 index reveals the first gap.
 
+#### Solution 1: Brute Force (Hash Set)
+
+**Approach:** Put all values into a `Set`, then check `1, 2, 3, ...` in order until a value is not found —
+that's the answer. Easy to write, but uses O(n) extra space, missing the problem's O(1)-space target.
+
+```js
+function firstMissingPositiveBrute(nums) {
+  const present = new Set(nums);
+  let candidate = 1;
+  while (present.has(candidate)) candidate++;
+  return candidate;
+}
+// firstMissingPositiveBrute([3,4,-1,1]) -> 2
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Cyclic Sort, In-Place)
+
 **Approach:** Cyclic-place values in `1..n`; the first index with `nums[i] !== i+1` gives the answer.
+Because the answer must lie within `1..n+1`, we only need to place values that fall in `1..n` at their home
+slots and ignore out-of-range ones; the first broken slot after placement is the answer, using O(1) extra
+space.
 
 ```js
 function firstMissingPositive(nums) {
@@ -1288,8 +2079,34 @@ position.
 **Why this is a Cyclic Sort problem:** Bounded range; after placement, the mismatched index holds the
 duplicate and reveals the missing.
 
+#### Solution 1: Brute Force (Hash Map)
+
+**Approach:** Count frequencies of all values in `1..n`; the value with count 2 is the duplicate, and the
+value with count 0 is missing. Straightforward but requires a full frequency map, using O(n) extra space.
+
+```js
+function findErrorNumsBrute(nums) {
+  const freq = new Map();
+  for (const num of nums) freq.set(num, (freq.get(num) || 0) + 1);
+  let duplicate = -1, missing = -1;
+  for (let i = 1; i <= nums.length; i++) {
+    const count = freq.get(i) || 0;
+    if (count === 2) duplicate = i;
+    if (count === 0) missing = i;
+  }
+  return [duplicate, missing];
+}
+// findErrorNumsBrute([1,2,2,4]) -> [2,3]
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Cyclic Sort, In-Place)
+
 **Approach:** Cyclic-place; the index where `nums[i] !== i+1` gives the duplicate (`nums[i]`) and missing
-(`i+1`).
+(`i+1`). Placing each value at its home slot in place means the one broken slot at the end simultaneously
+reveals both answers — the value sitting there is the duplicate, and the slot's expected value is the
+missing number — with O(1) extra space.
 
 ```js
 function findErrorNums(nums) {
@@ -1305,11 +2122,12 @@ function findErrorNums(nums) {
 // findErrorNums([1,2,2,4]) -> [2,3]
 ```
 
-**Complexity:** Time **O(n)**, Space **O(1)**.
+**Complexity:** Time **O(n)**, Space **O(1)** (in place, modifying input).
 
 **💡 Interview tip:** One pass yields both answers — neat payoff of the cyclic-sort placement.
 
 ---
+
 
 ## 6. In-place Linked List Reversal
 
@@ -1322,7 +2140,31 @@ function findErrorNums(nums) {
 **Why this is an In-place Reversal problem:** Re-point each node's `next` to its predecessor using a few
 pointers — no extra structure.
 
-**Approach:** Track `prev`/`curr`; save `next`, flip the link, advance.
+#### Solution 1: Brute Force (Copy Values into an Array)
+
+**Approach:** Traverse the list collecting all values into an array, reverse the array, then walk the
+original nodes again overwriting each `val` in reversed order. Works, but uses O(n) extra space and
+doesn't actually rewire the list — it only mutates values, which may be unacceptable if node identity
+matters.
+
+```js
+function reverseListBrute(head) {
+  const vals = [];
+  for (let node = head; node; node = node.next) vals.push(node.val);
+  vals.reverse();
+  let node = head, i = 0;
+  while (node) { node.val = vals[i++]; node = node.next; }
+  return head;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (In-place Pointer Reversal)
+
+**Approach:** Track `prev`/`curr`; save `next`, flip the link, advance. Rewiring `next` pointers directly,
+one node at a time, reverses the actual list structure (not just the values) using only three pointers and
+O(1) extra space.
 
 ```js
 function reverseList(head) {
@@ -1353,7 +2195,34 @@ too.
 **Why this is an In-place Reversal problem:** Reverse a bounded segment in place, then re-stitch it to the
 unreversed parts.
 
-**Approach:** Walk to the node before `m`, reverse `n-m+1` nodes, reconnect.
+#### Solution 1: Brute Force (Extract, Reverse, Reinsert)
+
+**Approach:** Walk to position `m`, pull out the `n-m+1` values into an array, reverse that array, then
+walk the same nodes again writing the reversed values back. Correct, but requires a second pass and O(k)
+extra space for the extracted segment.
+
+```js
+function reverseBetweenBrute(head, m, n) {
+  const dummy = { next: head };
+  let node = dummy.next;
+  for (let i = 1; i < m; i++) node = node.next;
+  const vals = [];
+  let temp = node;
+  for (let i = 0; i < n - m + 1; i++) { vals.push(temp.val); temp = temp.next; }
+  vals.reverse();
+  temp = node;
+  for (let i = 0; i < vals.length; i++) { temp.val = vals[i]; temp = temp.next; }
+  return dummy.next;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(n − m)** for the extracted segment.
+
+#### Solution 2: Optimized (In-place Head Insertion)
+
+**Approach:** Walk to the node before `m`, reverse `n-m+1` nodes, reconnect. Repeatedly moving the node
+right after the reversal point to the front of the segment ("head insertion") reverses the sub-list's
+actual pointers in a single pass with O(1) extra space; a dummy head cleanly handles `m = 1`.
 
 ```js
 function reverseBetween(head, m, n) {
@@ -1372,7 +2241,7 @@ function reverseBetween(head, m, n) {
 // reverseBetween(1->2->3->4->5, 2, 4) -> 1->4->3->2->5
 ```
 
-**Complexity:** Time **O(n)**, Space **O(1)**.
+**Complexity:** Time **O(n)** (single pass), Space **O(1)**.
 
 **💡 Interview tip:** A dummy head simplifies the case `m = 1`. The "head-insertion" swap moves each node to
 the front of the segment.
@@ -1388,7 +2257,37 @@ the front of the segment.
 **Why this is an In-place Reversal problem:** Repeated bounded reversal with careful re-linking between
 groups.
 
-**Approach:** Verify `k` nodes remain; reverse them; recurse for the rest and connect.
+#### Solution 1: Brute Force (Copy Values per Group)
+
+**Approach:** Walk the list in chunks of `k`, and for each full chunk, copy its values into an array,
+reverse the array, and write the values back into the same nodes. Simple to reason about group by group,
+but uses O(k) extra space per group and only rewrites values, not pointers.
+
+```js
+function reverseKGroupBrute(head, k) {
+  let node = head;
+  while (node) {
+    const groupNodes = [];
+    let temp = node;
+    for (let i = 0; i < k && temp; i++) { groupNodes.push(temp); temp = temp.next; }
+    if (groupNodes.length === k) {
+      const vals = groupNodes.map(n => n.val).reverse();
+      groupNodes.forEach((n, i) => n.val = vals[i]);
+    }
+    node = temp;
+  }
+  return head;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(k)** per group.
+
+#### Solution 2: Optimized (In-place Pointer Reversal + Recursion)
+
+**Approach:** Verify `k` nodes remain; reverse them; recurse for the rest and connect. Checking group size
+up front avoids reversing an incomplete trailing group, and rewiring `next` pointers directly (rather than
+copying values) reverses true node order using only O(1) space per group (O(n/k) if using recursion, O(1)
+iteratively).
 
 ```js
 function reverseKGroup(head, k) {
@@ -1418,7 +2317,31 @@ function reverseKGroup(head, k) {
 **Why this is an In-place Reversal problem:** It's "reverse in groups of 2" — pointer rewiring without
 extra memory.
 
-**Approach:** Use a dummy; repeatedly swap the next two nodes and advance.
+#### Solution 1: Brute Force (Swap Values)
+
+**Approach:** Walk the list two nodes at a time and swap their `val` fields directly, leaving the pointer
+structure untouched. Very easy to write and uses O(1) extra space, but relies on nodes being mutable
+value-holders rather than truly reordering nodes — unsuitable if node identity must change.
+
+```js
+function swapPairsBrute(head) {
+  let node = head;
+  while (node && node.next) {
+    [node.val, node.next.val] = [node.next.val, node.val];
+    node = node.next.next;
+  }
+  return head;
+}
+// swapPairsBrute(1->2->3->4) -> 2->1->4->3 (values swapped, same node objects)
+```
+
+**Complexity:** Time **O(n)**, Space **O(1)**.
+
+#### Solution 2: Optimized (In-place Pointer Rewiring)
+
+**Approach:** Use a dummy; repeatedly swap the next two nodes and advance. Rewiring the actual `next`
+pointers (rather than swapping values) truly reorders the nodes, which matters when other references to
+the nodes exist; it's a direct special case of reverse-k-group with `k = 2`.
 
 ```js
 function swapPairs(head) {
@@ -1451,7 +2374,38 @@ function swapPairs(head) {
 **Why this is an In-place Reversal-family problem:** It rewires links in place — connect the tail to the
 head to form a ring, then break it at the new position.
 
-**Approach:** Find length, make it circular, then break `len - k%len` nodes ahead.
+#### Solution 1: Brute Force (Repeated Single Rotation)
+
+**Approach:** Rotate the list one node at a time (move the last node to the front), repeated `k` times
+(after reducing `k` modulo length). Each single rotation requires walking to the tail, so it's correct but
+wastefully re-scans the list for every one of the `k` rotations.
+
+```js
+function rotateRightBrute(head, k) {
+  if (!head || !head.next) return head;
+  let len = 1, tail = head;
+  while (tail.next) { tail = tail.next; len++; }
+  k = k % len;
+  for (let r = 0; r < k; r++) {
+    let node = head;
+    while (node.next.next) node = node.next;   // second-to-last node
+    const last = node.next;
+    node.next = null;
+    last.next = head;
+    head = last;
+  }
+  return head;
+}
+// rotateRightBrute(1->2->3->4->5, 2) -> 4->5->1->2->3
+```
+
+**Complexity:** Time **O(k·n)** (a full walk per rotation), Space **O(1)**.
+
+#### Solution 2: Optimized (Circular Link + Break)
+
+**Approach:** Find length, make it circular, then break `len - k%len` nodes ahead. Joining the tail to the
+head once turns the list into a ring; walking to the new break point and cutting there performs the entire
+rotation in a single additional pass, regardless of how large `k` is.
 
 ```js
 function rotateRight(head, k) {
@@ -1476,6 +2430,7 @@ function rotateRight(head, k) {
 
 ---
 
+
 ## 7. Tree BFS
 
 > Assume a binary tree node `{ val, left, right }`. Arrays are used as queues (`shift`/`push`); for very
@@ -1489,7 +2444,35 @@ function rotateRight(head, k) {
 
 **Why this is a Tree BFS problem:** Level-by-level output is the textbook BFS-with-a-queue signal.
 
-**Approach:** Snapshot each level's size, dequeue that many nodes, collect values, enqueue children.
+#### Solution 1: Alternative Approach (DFS with Depth Tracking)
+
+**Approach:** Recurse through the tree carrying the current depth; push each node's value into
+`res[depth]`, creating that level's array on first visit. This achieves the same grouped-by-level result
+without an explicit queue, trading the natural level-by-level order for a depth parameter threaded through
+recursion.
+
+```js
+function levelOrderDFS(root) {
+  const res = [];
+  function dfs(node, depth) {
+    if (!node) return;
+    if (!res[depth]) res[depth] = [];
+    res[depth].push(node.val);
+    dfs(node.left, depth + 1);
+    dfs(node.right, depth + 1);
+  }
+  dfs(root, 0);
+  return res;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(h)** recursion + **O(n)** output.
+
+#### Solution 2: Optimized (Iterative BFS with a Queue)
+
+**Approach:** Snapshot each level's size, dequeue that many nodes, collect values, enqueue children. This
+is the canonical, most readable way to produce level-grouped output and avoids recursion depth concerns on
+very deep/unbalanced trees.
 
 ```js
 function levelOrder(root) {
@@ -1510,7 +2493,7 @@ function levelOrder(root) {
 }
 ```
 
-**Complexity:** Time **O(n)**, Space **O(n)**.
+**Complexity:** Time **O(n)**, Space **O(n)** (queue + output).
 
 **💡 Interview tip:** Snapshotting `size` before the inner loop is what separates levels cleanly.
 
@@ -1525,7 +2508,39 @@ function levelOrder(root) {
 **Why this is a Tree BFS problem:** Standard level traversal with a direction flag controlling insertion
 order.
 
-**Approach:** Same BFS; reverse each level (or push to front) on alternate levels.
+#### Solution 1: Brute Force (BFS then Reverse Alternating Levels)
+
+**Approach:** Run a normal level-order BFS to get every level left-to-right, then do a second pass
+reversing every other level's array. Simple two-step process, but does extra work reversing arrays after
+the fact instead of building them in the right order the first time.
+
+```js
+function zigzagLevelOrderBrute(root) {
+  const res = [];
+  if (!root) return res;
+  const queue = [root];
+  while (queue.length) {
+    const size = queue.length, level = [];
+    for (let i = 0; i < size; i++) {
+      const node = queue.shift();
+      level.push(node.val);
+      if (node.left) queue.push(node.left);
+      if (node.right) queue.push(node.right);
+    }
+    res.push(level);
+  }
+  for (let i = 1; i < res.length; i += 2) res[i].reverse();
+  return res;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Single-Pass BFS with a Direction Flag)
+
+**Approach:** Same BFS; reverse each level (or push to front) on alternate levels. Using `unshift` while
+building the level (instead of reversing afterward) produces the correctly-ordered level in the same pass
+that visits the nodes, avoiding a second traversal.
 
 ```js
 function zigzagLevelOrder(root) {
@@ -1564,7 +2579,31 @@ BFS logic intact.
 
 **Why this is a Tree BFS problem:** BFS reaches the closest leaf first, allowing an early return.
 
-**Approach:** BFS with depth; return at the first leaf.
+#### Solution 1: Brute Force (DFS, Compute All Leaf Depths)
+
+**Approach:** Recursively visit every node, and whenever a leaf is reached, record its depth; return the
+minimum depth found across the whole tree. Correct, but must visit the entire tree even if a very shallow
+leaf exists, unlike BFS which can stop immediately.
+
+```js
+function minDepthDFS(root) {
+  if (!root) return 0;
+  if (!root.left && !root.right) return 1;
+  let min = Infinity;
+  if (root.left) min = Math.min(min, minDepthDFS(root.left) + 1);
+  if (root.right) min = Math.min(min, minDepthDFS(root.right) + 1);
+  return min;
+}
+```
+
+**Complexity:** Time **O(n)** (visits every node regardless of where the shallowest leaf is), Space
+**O(h)** recursion.
+
+#### Solution 2: Optimized (BFS with Early Exit)
+
+**Approach:** BFS with depth; return at the first leaf. Because BFS explores level by level, the very first
+leaf it encounters is guaranteed to be at the minimum depth, letting it return immediately instead of
+exploring the rest of the tree.
 
 ```js
 function minDepth(root) {
@@ -1580,7 +2619,7 @@ function minDepth(root) {
 }
 ```
 
-**Complexity:** Time **O(n)** worst case, Space **O(n)**.
+**Complexity:** Time **O(n)** worst case, but early-exits on trees with a shallow leaf; Space **O(n)**.
 
 **💡 Interview tip:** For *min* depth BFS beats DFS due to early exit; a DFS bug is treating a one-child node
 as a leaf.
@@ -1595,7 +2634,34 @@ as a leaf.
 
 **Why this is a Tree BFS problem:** The last node of each level is the rightmost visible one.
 
-**Approach:** BFS; record the last node processed in each level.
+#### Solution 1: Brute Force (DFS, Track Max Depth Seen)
+
+**Approach:** DFS right-child-first (or track depth while visiting both), and record a level's value the
+first time that depth is reached — since we visit right before left, the first node recorded per depth is
+the rightmost one. Achieves the same result without a queue but relies on carefully ordering recursive
+calls.
+
+```js
+function rightSideViewDFS(root) {
+  const res = [];
+  function dfs(node, depth) {
+    if (!node) return;
+    if (depth === res.length) res.push(node.val);
+    dfs(node.right, depth + 1); // visit right first
+    dfs(node.left, depth + 1);
+  }
+  dfs(root, 0);
+  return res;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(h)** recursion.
+
+#### Solution 2: Optimized (Iterative BFS, Track Last per Level)
+
+**Approach:** BFS; record the last node processed in each level. Since BFS naturally processes nodes
+left-to-right within a level, the last node dequeued in each level is exactly the rightmost visible one —
+no special traversal order needed.
 
 ```js
 function rightSideView(root) {
@@ -1629,7 +2695,34 @@ function rightSideView(root) {
 
 **Why this is a Tree BFS problem:** Per-level aggregation is natural with level-order BFS.
 
-**Approach:** BFS; sum each level and divide by its size.
+#### Solution 1: Brute Force (DFS Collecting Sums/Counts per Depth)
+
+**Approach:** DFS the tree, accumulating a running sum and count for each depth in parallel arrays, then
+divide sum by count per depth at the end. Correct and avoids an explicit queue, but requires a final pass
+to compute the averages.
+
+```js
+function averageOfLevelsDFS(root) {
+  const sums = [], counts = [];
+  function dfs(node, depth) {
+    if (!node) return;
+    sums[depth] = (sums[depth] || 0) + node.val;
+    counts[depth] = (counts[depth] || 0) + 1;
+    dfs(node.left, depth + 1);
+    dfs(node.right, depth + 1);
+  }
+  dfs(root, 0);
+  return sums.map((sum, i) => sum / counts[i]);
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(h)** recursion + **O(h)** for sums/counts.
+
+#### Solution 2: Optimized (Iterative BFS)
+
+**Approach:** BFS; sum each level and divide by its size. Processing one full level at a time makes the
+sum and count available together, so the average for a level can be computed and pushed immediately
+without needing separate bookkeeping arrays.
 
 ```js
 function averageOfLevels(root) {
@@ -1667,7 +2760,43 @@ end).
 
 **Why this is a Tree BFS problem:** Linking siblings is inherently a level-by-level operation.
 
-**Approach:** BFS; within each level, set the previous node's `next` to the current node.
+#### Solution 1: Brute Force (Two-Pass: Collect Levels, Then Link)
+
+**Approach:** First run a standard level-order BFS to collect the nodes of each level into arrays, then in
+a second pass iterate each array linking each node's `next` to the following one. Correct and easy to
+follow, but stores every level's nodes before linking, using extra space.
+
+```js
+function connectBrute(root) {
+  if (!root) return root;
+  const levels = [];
+  const queue = [root];
+  while (queue.length) {
+    const size = queue.length, level = [];
+    for (let i = 0; i < size; i++) {
+      const node = queue.shift();
+      level.push(node);
+      if (node.left) queue.push(node.left);
+      if (node.right) queue.push(node.right);
+    }
+    levels.push(level);
+  }
+  for (const level of levels) {
+    for (let i = 0; i < level.length - 1; i++) level[i].next = level[i + 1];
+    level[level.length - 1].next = null;
+  }
+  return root;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)** (storing all levels).
+
+#### Solution 2: Optimized (Single-Pass BFS)
+
+**Approach:** BFS; within each level, set the previous node's `next` to the current node. Linking as we
+dequeue avoids storing whole levels — we only need to remember the previously dequeued node in the current
+level, giving the same result with less bookkeeping. (A further O(1)-space version exists for perfect
+binary trees using the already-built `next` pointers to traverse without a queue at all.)
 
 ```js
 function connect(root) {
@@ -1708,7 +2837,34 @@ function connect(root) {
 **Why this is a Tree DFS problem:** It concerns a vertical root-to-leaf path; recurse downward carrying the
 remaining sum.
 
-**Approach:** Subtract node value while descending; at a leaf, check the remainder.
+#### Solution 1: Brute Force (Collect All Root-to-Leaf Sums)
+
+**Approach:** DFS every root-to-leaf path, computing its total sum, and collect all sums into an array;
+then check if the target appears in that array. Correct, but does more work than necessary by computing
+every path's sum before checking any of them.
+
+```js
+function hasPathSumBrute(root, target) {
+  const sums = [];
+  function dfs(node, sum) {
+    if (!node) return;
+    sum += node.val;
+    if (!node.left && !node.right) { sums.push(sum); return; }
+    dfs(node.left, sum);
+    dfs(node.right, sum);
+  }
+  dfs(root, 0);
+  return sums.includes(target);
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)** (storing all leaf sums) + **O(h)** recursion.
+
+#### Solution 2: Optimized (DFS with Remaining Sum, Early Exit)
+
+**Approach:** Subtract node value while descending; at a leaf, check the remainder. Passing down the
+*remaining* target (instead of the accumulated sum) lets each recursive call return true/false immediately
+and short-circuit via `||`, avoiding the need to store every path sum.
 
 ```js
 function hasPathSum(root, target) {
@@ -1719,7 +2875,7 @@ function hasPathSum(root, target) {
 }
 ```
 
-**Complexity:** Time **O(n)**, Space **O(h)**.
+**Complexity:** Time **O(n)** worst case, but short-circuits on early match; Space **O(h)**.
 
 **💡 Interview tip:** Define the leaf condition precisely (both children null) — a frequent bug source.
 
@@ -1734,7 +2890,36 @@ function hasPathSum(root, target) {
 **Why this is a Tree DFS problem:** Collecting full paths requires DFS with backtracking of the current
 path.
 
-**Approach:** DFS carrying the path; on a matching leaf, record a copy; backtrack on return.
+#### Solution 1: Brute Force (Collect Every Path, Filter After)
+
+**Approach:** DFS every root-to-leaf path, recording each complete path along with its sum into a list,
+then filter that list down to the paths matching the target at the end. Correct, but keeps every path in
+memory rather than pruning as it goes.
+
+```js
+function pathSumIIBrute(root, target) {
+  const allPaths = [];
+  function dfs(node, path) {
+    if (!node) return;
+    path.push(node.val);
+    if (!node.left && !node.right) allPaths.push([...path]);
+    else { dfs(node.left, path); dfs(node.right, path); }
+    path.pop();
+  }
+  dfs(root, []);
+  return allPaths.filter(p => p.reduce((a, b) => a + b, 0) === target);
+}
+```
+
+**Complexity:** Time **O(n)** to visit + **O(L)** per path to sum (L = path length), Space **O(n·h)** for
+all stored paths.
+
+#### Solution 2: Optimized (DFS with Backtracking, Remaining Sum)
+
+**Approach:** DFS carrying the path; on a matching leaf, record a copy; backtrack on return. Tracking the
+*remaining* sum as we descend (instead of summing each full path afterward) lets us decide "does this path
+qualify" the instant we reach a leaf, and popping the path array on the way back up (backtracking) reuses
+the same array for every branch instead of allocating new ones.
 
 ```js
 function pathSumII(root, target) {
@@ -1754,7 +2939,8 @@ function pathSumII(root, target) {
 }
 ```
 
-**Complexity:** Time **O(n)** to visit, up to **O(n²)** to copy paths. Space **O(h)**.
+**Complexity:** Time **O(n)** to visit, up to **O(n²)** to copy matching paths. Space **O(h)** (plus
+matches stored in the result).
 
 **💡 Interview tip:** Push a **copy** (`[...path]`) into results and `pop()` to backtrack — the standard
 DFS-path idiom.
@@ -1770,7 +2956,41 @@ DFS-path idiom.
 **Why this is a Tree DFS problem:** Combine DFS with running prefix sums to count any downward segment with
 the target sum.
 
+#### Solution 1: Brute Force (DFS from Every Node)
+
+**Approach:** For every node in the tree, run a separate DFS downward from it, summing values along the
+way and counting whenever the running sum hits the target. Simple nested-DFS structure, but re-walks
+overlapping subtrees from every possible starting node.
+
+```js
+function pathSumIIIBrute(root, target) {
+  let count = 0;
+  function countFrom(node, remaining) {
+    if (!node) return;
+    remaining -= node.val;
+    if (remaining === 0) count++;
+    countFrom(node.left, remaining);
+    countFrom(node.right, remaining);
+  }
+  function dfs(node) {
+    if (!node) return;
+    countFrom(node, target);
+    dfs(node.left);
+    dfs(node.right);
+  }
+  dfs(root);
+  return count;
+}
+```
+
+**Complexity:** Time **O(n²)** worst case (DFS from every node), Space **O(h)** recursion.
+
+#### Solution 2: Optimized (DFS + Prefix Sum Map)
+
 **Approach:** Track cumulative sum from root; a hash map of prefix-sum counts gives matches in O(n).
+Recognizing this as "subarray sum equals K" mapped onto a tree path: any downward segment's sum is a
+difference of two root-to-node prefix sums, so a running hash map of prefix-sum frequencies (with
+backtracking to remove counts when leaving a subtree) finds all matches in a single traversal.
 
 ```js
 function pathSumIII(root, target) {
@@ -1806,7 +3026,31 @@ impresses.
 **Why this is a Tree DFS problem:** Longest path through a node = left height + right height; compute
 heights bottom-up.
 
-**Approach:** Post-order DFS returning height while updating a global max.
+#### Solution 1: Brute Force (Recompute Height per Node)
+
+**Approach:** For every node, separately compute the height of its left and right subtrees (each via its
+own full traversal) and update a global max with their sum; recurse to check every node this way. Correct,
+but recomputing height from scratch at every node makes it quadratic.
+
+```js
+function heightOf(node) {
+  if (!node) return 0;
+  return 1 + Math.max(heightOf(node.left), heightOf(node.right));
+}
+function diameterOfBinaryTreeBrute(root) {
+  if (!root) return 0;
+  const throughRoot = heightOf(root.left) + heightOf(root.right);
+  return Math.max(throughRoot, diameterOfBinaryTreeBrute(root.left), diameterOfBinaryTreeBrute(root.right));
+}
+```
+
+**Complexity:** Time **O(n²)** worst case (height recomputed at every node), Space **O(h)** recursion.
+
+#### Solution 2: Optimized (Single DFS Returning Height)
+
+**Approach:** Post-order DFS returning height while updating a global max. Having each recursive call
+return its own subtree's height (computed once) lets the parent combine left/right heights in O(1) instead
+of re-traversing — this fuses the diameter check into the same pass that computes height.
 
 ```js
 function diameterOfBinaryTree(root) {
@@ -1838,7 +3082,35 @@ through root).
 **Why this is a Tree DFS problem:** At each node, the best "through" path = node + max(0, left gain) +
 max(0, right gain); compute gains bottom-up.
 
-**Approach:** DFS returning the max downward gain; update a global max with the through-node path.
+#### Solution 1: Brute Force (Recompute Max Downward Gain per Node)
+
+**Approach:** For every node, independently compute the max downward gain from its left and right children
+(each via a separate full recursive call), combine them for the "through this node" path, and recurse over
+all nodes to find the global best. Conceptually clear, but recomputing downward gain from scratch at every
+node is quadratic.
+
+```js
+function maxGainFrom(node) {
+  if (!node) return 0;
+  return node.val + Math.max(0, maxGainFrom(node.left), maxGainFrom(node.right));
+}
+function maxPathSumBrute(root) {
+  if (!root) return -Infinity;
+  const left = Math.max(0, maxGainFrom(root.left));
+  const right = Math.max(0, maxGainFrom(root.right));
+  const throughRoot = root.val + left + right;
+  return Math.max(throughRoot, maxPathSumBrute(root.left), maxPathSumBrute(root.right));
+}
+```
+
+**Complexity:** Time **O(n²)** worst case, Space **O(h)** recursion.
+
+#### Solution 2: Optimized (Single DFS Returning Best Downward Gain)
+
+**Approach:** DFS returning the max downward gain; update a global max with the through-node path. Each
+call computes its own best downward gain exactly once and returns it to the parent, so the parent combines
+left/right gains in O(1). Two key details: clamp negative gains to 0 (skip a branch that would only hurt),
+and return only the better single branch upward (a path can't fork once it continues past the parent).
 
 ```js
 function maxPathSum(root) {
@@ -1871,7 +3143,42 @@ can't fork at the parent).
 **Why this is a Tree DFS problem:** Recursively search both subtrees; the node where the two targets split
 is the LCA.
 
+#### Solution 1: Brute Force (Collect Root-to-Node Paths, Compare)
+
+**Approach:** DFS to find the full root-to-node path for `p` and for `q` separately, then walk both paths
+in lockstep and return the last node they still agree on. Very intuitive (paths visually "diverge" at the
+LCA), but requires two full traversals and O(h) extra space to store each path.
+
+```js
+function findPath(node, target, path) {
+  if (!node) return false;
+  path.push(node);
+  if (node === target) return true;
+  if (findPath(node.left, target, path) || findPath(node.right, target, path)) return true;
+  path.pop();
+  return false;
+}
+function lowestCommonAncestorBrute(root, p, q) {
+  const pathP = [], pathQ = [];
+  findPath(root, p, pathP);
+  findPath(root, q, pathQ);
+  let lca = null;
+  for (let i = 0; i < Math.min(pathP.length, pathQ.length); i++) {
+    if (pathP[i] === pathQ[i]) lca = pathP[i];
+    else break;
+  }
+  return lca;
+}
+```
+
+**Complexity:** Time **O(n)** (two traversals), Space **O(h)** for the two paths.
+
+#### Solution 2: Optimized (Single DFS, Bottom-Up)
+
 **Approach:** DFS; if a subtree contains one target each (or the node itself is a target), it's the LCA.
+Rather than building explicit paths, each recursive call reports upward whether it found `p`, `q`, or
+neither; the first node where both sides report a find is the split point — found in a single traversal
+with no extra path storage.
 
 ```js
 function lowestCommonAncestor(root, p, q) {
@@ -1899,7 +3206,35 @@ mention it if they specify a BST.
 **Why this is a Tree DFS problem:** Validity depends on value ranges propagated down each path — a DFS
 carrying (min, max) bounds.
 
-**Approach:** DFS passing allowed `(low, high)` bounds; each node must lie strictly within them.
+#### Solution 1: Brute Force (In-order Traversal, Collect and Check)
+
+**Approach:** Do an in-order traversal collecting every value into an array, then check that the array is
+strictly increasing. A valid BST's in-order traversal is always sorted, so this correctly validates it, at
+the cost of O(n) extra space for the collected array.
+
+```js
+function isValidBSTBrute(root) {
+  const vals = [];
+  function inorder(node) {
+    if (!node) return;
+    inorder(node.left);
+    vals.push(node.val);
+    inorder(node.right);
+  }
+  inorder(root);
+  for (let i = 1; i < vals.length; i++) if (vals[i] <= vals[i - 1]) return false;
+  return true;
+}
+```
+
+**Complexity:** Time **O(n)**, Space **O(n)** (storing all values).
+
+#### Solution 2: Optimized (DFS with Propagated Bounds)
+
+**Approach:** DFS passing allowed `(low, high)` bounds; each node must lie strictly within them. Checking
+only `left < node < right` locally is wrong — validity depends on **all ancestor bounds**, not just the
+immediate parent — so we thread a shrinking `(low, high)` range down through recursion, validating in a
+single pass with O(1) extra space beyond the call stack.
 
 ```js
 function isValidBST(root, low = -Infinity, high = Infinity) {
@@ -1910,12 +3245,13 @@ function isValidBST(root, low = -Infinity, high = Infinity) {
 }
 ```
 
-**Complexity:** Time **O(n)**, Space **O(h)**.
+**Complexity:** Time **O(n)**, Space **O(h)** recursion.
 
 **💡 Interview tip:** Checking only `left < node < right` locally is wrong — you must propagate **ancestor
 bounds**. An in-order traversal (must be strictly increasing) is an equally valid approach.
 
 ---
+
 
 ## 9. Graph Traversal
 
@@ -1928,7 +3264,49 @@ bounds**. An in-order traversal (must be strictly increasing) is an equally vali
 **Why this is a Graph Traversal problem:** The grid is an implicit graph; counting components = flood-fill
 from each unvisited land cell.
 
-**Approach:** Scan cells; on land, increment count and DFS-sink the whole island.
+#### Solution 1: Alternative Approach (BFS Instead of DFS)
+
+**Approach:** Scan cells; on unvisited land, increment count and BFS-sink the whole island using an
+explicit queue instead of recursion. Produces the identical result to the DFS version, but avoids deep
+recursion (and potential stack overflow) on very large grids by using an explicit queue.
+
+```js
+function numIslandsBFS(grid) {
+  if (!grid.length) return 0;
+  const rows = grid.length, cols = grid[0].length;
+  let count = 0;
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (grid[r][c] === '1') {
+        count++;
+        grid[r][c] = '0';
+        const queue = [[r, c]];
+        while (queue.length) {
+          const [cr, cc] = queue.shift();
+          for (const [dr, dc] of dirs) {
+            const nr = cr + dr, nc = cc + dc;
+            if (nr >= 0 && nc >= 0 && nr < rows && nc < cols && grid[nr][nc] === '1') {
+              grid[nr][nc] = '0';
+              queue.push([nr, nc]);
+            }
+          }
+        }
+      }
+    }
+  }
+  return count;
+}
+```
+
+**Complexity:** Time **O(rows·cols)**, Space **O(rows·cols)** worst case (queue).
+
+#### Solution 2: Optimized (DFS Flood Fill)
+
+**Approach:** Scan cells; on land, increment count and DFS-sink the whole island. Recursively marking every
+connected land cell as visited ('0') the moment we find an island means each cell is processed exactly
+once across the whole grid; recursion keeps the code compact, though BFS is safer for huge grids to avoid
+stack limits.
 
 ```js
 function numIslands(grid) {
@@ -1947,7 +3325,7 @@ function numIslands(grid) {
 }
 ```
 
-**Complexity:** Time **O(rows·cols)**, Space **O(rows·cols)**.
+**Complexity:** Time **O(rows·cols)**, Space **O(rows·cols)** worst case (recursion stack).
 
 **💡 Interview tip:** Ask if mutating the grid is allowed; otherwise keep a `visited` set. BFS avoids deep
 recursion on huge grids.
@@ -1963,7 +3341,39 @@ recursion on huge grids.
 **Why this is a Graph Traversal problem:** Visit every node/edge once while handling cycles via a
 visited→clone map.
 
-**Approach:** DFS; clone on first visit, register before recursing, link neighbors.
+#### Solution 1: Alternative Approach (BFS Instead of DFS)
+
+**Approach:** Use an explicit queue to visit nodes level by level, cloning each node the first time it's
+seen and registering it in a map before exploring its neighbors. Same correctness guarantee as DFS, but
+avoids recursion, which can matter for very large or deeply connected graphs.
+
+```js
+function cloneGraphBFS(node) {
+  if (!node) return null;
+  const cloned = new Map();
+  cloned.set(node, { val: node.val, neighbors: [] });
+  const queue = [node];
+  while (queue.length) {
+    const curr = queue.shift();
+    for (const nb of curr.neighbors) {
+      if (!cloned.has(nb)) {
+        cloned.set(nb, { val: nb.val, neighbors: [] });
+        queue.push(nb);
+      }
+      cloned.get(curr).neighbors.push(cloned.get(nb));
+    }
+  }
+  return cloned.get(node);
+}
+```
+
+**Complexity:** Time **O(V + E)**, Space **O(V)**.
+
+#### Solution 2: Optimized (DFS with Visited Map)
+
+**Approach:** DFS; clone on first visit, register before recursing, link neighbors. Registering the clone
+in the visited map **before** recursing into its neighbors is what allows cycles to be handled safely — if
+we recurse first, a cycle back to an in-progress node would cause infinite recursion.
 
 ```js
 function cloneGraph(node) {
@@ -1997,7 +3407,41 @@ color.
 **Why this is a Graph Traversal problem:** Connected same-color pixels form a component to traverse and
 recolor.
 
-**Approach:** DFS/BFS from the start, recoloring matching neighbors; guard against the no-op case.
+#### Solution 1: Alternative Approach (BFS Instead of DFS)
+
+**Approach:** Use an explicit queue starting from the seed pixel, recoloring and enqueuing same-colored
+neighbors level by level. Functionally identical to the DFS version, useful when recursion depth on large
+images is a concern.
+
+```js
+function floodFillBFS(image, sr, sc, newColor) {
+  const start = image[sr][sc];
+  if (start === newColor) return image;
+  const rows = image.length, cols = image[0].length;
+  const queue = [[sr, sc]];
+  image[sr][sc] = newColor;
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  while (queue.length) {
+    const [r, c] = queue.shift();
+    for (const [dr, dc] of dirs) {
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nc >= 0 && nr < rows && nc < cols && image[nr][nc] === start) {
+        image[nr][nc] = newColor;
+        queue.push([nr, nc]);
+      }
+    }
+  }
+  return image;
+}
+```
+
+**Complexity:** Time **O(n)** pixels, Space **O(n)**.
+
+#### Solution 2: Optimized (DFS Flood Fill)
+
+**Approach:** DFS/BFS from the start, recoloring matching neighbors; guard against the no-op case. The
+`start === newColor` guard is essential — without it, recoloring a pixel to the *same* color it already
+has would cause the recursion to never terminate (every neighbor still "matches" forever).
 
 ```js
 function floodFill(image, sr, sc, newColor) {
@@ -2013,7 +3457,7 @@ function floodFill(image, sr, sc, newColor) {
 }
 ```
 
-**Complexity:** Time **O(n)** pixels, Space **O(n)**.
+**Complexity:** Time **O(n)** pixels, Space **O(n)** (recursion stack worst case).
 
 **💡 Interview tip:** The `start === newColor` guard prevents infinite recursion — call it out.
 
@@ -2029,8 +3473,46 @@ fresh, or -1 if impossible.
 **Why this is a Graph Traversal problem:** Simultaneous spread from multiple sources = **multi-source BFS**,
 where BFS levels are minutes.
 
+#### Solution 1: Brute Force (Simulate Minute by Minute)
+
+**Approach:** Repeatedly scan the entire grid once per simulated minute, rotting any fresh orange adjacent
+to a rotten one that minute, and stop when a full pass causes no changes. Mirrors the problem statement
+literally, but rescans the whole grid every minute even when only a few cells are actively changing.
+
+```js
+function orangesRottingBrute(grid) {
+  const rows = grid.length, cols = grid[0].length;
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  let minutes = 0;
+  function hasFresh() {
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (grid[r][c] === 1) return true;
+    return false;
+  }
+  while (hasFresh()) {
+    const toRot = [];
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        if (grid[r][c] === 2)
+          for (const [dr, dc] of dirs) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nc >= 0 && nr < rows && nc < cols && grid[nr][nc] === 1) toRot.push([nr, nc]);
+          }
+    if (!toRot.length) return -1; // no change but fresh oranges remain -> unreachable
+    for (const [r, c] of toRot) grid[r][c] = 2;
+    minutes++;
+  }
+  return minutes;
+}
+```
+
+**Complexity:** Time **O(rows·cols·minutes)** (a full grid scan per minute), Space **O(rows·cols)**.
+
+#### Solution 2: Optimized (Multi-source BFS)
+
 **Approach:** Enqueue all rotten cells; BFS level by level rotting neighbors; count minutes; verify no
-fresh remain.
+fresh remain. Seeding the BFS queue with *every* initially rotten cell at once (multi-source BFS) means
+each BFS "level" corresponds exactly to one minute passing, giving the answer in a single traversal instead
+of repeated full-grid scans.
 
 ```js
 function orangesRotting(grid) {
@@ -2078,8 +3560,46 @@ sequence changing one letter at a time (each intermediate must be in the list).
 **Why this is a Graph Traversal problem:** Words are nodes; edges connect words differing by one letter.
 Shortest path in an unweighted graph → BFS.
 
+#### Solution 1: Brute Force (BFS with Full-List Neighbor Scan)
+
+**Approach:** Same BFS structure, but instead of generating mutations, find each word's neighbors by
+scanning the *entire* remaining word list and checking if it differs from the current word by exactly one
+letter. Correct, but comparing against every other word is much slower than generating candidate
+mutations directly.
+
+```js
+function differsByOne(a, b) {
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff++;
+  return diff === 1;
+}
+function ladderLengthBrute(beginWord, endWord, wordList) {
+  const words = new Set(wordList);
+  if (!words.has(endWord)) return 0;
+  const queue = [[beginWord, 1]];
+  while (queue.length) {
+    const [word, steps] = queue.shift();
+    if (word === endWord) return steps;
+    for (const candidate of [...words]) {
+      if (differsByOne(word, candidate)) {
+        words.delete(candidate);
+        queue.push([candidate, steps + 1]);
+      }
+    }
+  }
+  return 0;
+}
+```
+
+**Complexity:** Time **O(N² · L)** (N words, comparing against all others, L-length comparison), Space
+**O(N)**.
+
+#### Solution 2: Optimized (BFS with Generated Mutations)
+
 **Approach:** BFS from `beginWord`, generating one-letter mutations; the first time you reach `endWord`,
-return the level.
+return the level. Generating all `26 · L` possible one-letter mutations of the current word and checking
+each against the word set (O(1) lookup) is far cheaper than comparing against every remaining word,
+especially when the dictionary is large. Deleting visited words from the set avoids revisiting them.
 
 ```js
 function ladderLength(beginWord, endWord, wordList) {
@@ -2120,8 +3640,52 @@ follow-up for large inputs.
 **Why this is a Graph Traversal problem:** Reverse the flow — DFS **inland** from each ocean's borders;
 cells reachable from both oceans are the answer.
 
+#### Solution 1: Brute Force (DFS Downhill from Every Cell)
+
+**Approach:** For every single cell, run a separate DFS/BFS simulating water flowing *downhill* from it,
+checking whether that flow can reach the Pacific border and, separately, the Atlantic border. Directly
+tests the problem's definition per cell, but re-simulates overlapping downhill flows from scratch for every
+cell.
+
+```js
+function canReachBorder(heights, r, c, isPacific) {
+  const rows = heights.length, cols = heights[0].length;
+  const visited = Array.from({ length: rows }, () => new Array(cols).fill(false));
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  function dfs(r, c) {
+    if (isPacific && (r === 0 || c === 0)) return true;
+    if (!isPacific && (r === rows - 1 || c === cols - 1)) return true;
+    visited[r][c] = true;
+    for (const [dr, dc] of dirs) {
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nc >= 0 && nr < rows && nc < cols && !visited[nr][nc] && heights[nr][nc] <= heights[r][c]) {
+        if (dfs(nr, nc)) return true;
+      }
+    }
+    return false;
+  }
+  return dfs(r, c);
+}
+function pacificAtlanticBrute(heights) {
+  if (!heights.length) return [];
+  const rows = heights.length, cols = heights[0].length, res = [];
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      if (canReachBorder(heights, r, c, true) && canReachBorder(heights, r, c, false)) res.push([r, c]);
+  return res;
+}
+```
+
+**Complexity:** Time **O((rows·cols)²)** worst case (a full flood check per cell), Space **O(rows·cols)**
+per check.
+
+#### Solution 2: Optimized (Reverse Flow, DFS from Borders)
+
 **Approach:** DFS from Pacific borders and Atlantic borders separately (climbing to ≥ heights); intersect
-the two reachable sets.
+the two reachable sets. The key insight is **reversing the flow**: instead of asking "can this cell flow to
+the ocean," ask "which cells can the ocean reach by climbing uphill" — a DFS from each ocean's border cells
+that only moves to equal-or-higher neighbors. Each ocean needs only one traversal over the whole grid, and
+the answer is simply the intersection of the two reachable sets.
 
 ```js
 function pacificAtlantic(heights) {
@@ -2152,6 +3716,7 @@ testing every cell's downhill path.
 
 ---
 
+
 ## 10. Topological Sort
 
 ### 10.1 Course Schedule (Can Finish?)
@@ -2163,8 +3728,39 @@ testing every cell's downhill path.
 **Why this is a Topological Sort problem:** Dependency ordering on a directed graph; a valid order exists iff
 the graph is a DAG.
 
+#### Solution 1: Alternative Approach (DFS Cycle Detection)
+
+**Approach:** DFS from each course, marking nodes as "visiting" (on the current recursion path) and
+"visited" (fully processed); if we ever reach a node that's still "visiting," a cycle exists. This detects
+the same condition as Kahn's algorithm but via explicit recursion and a three-state coloring scheme instead
+of in-degree counting.
+
+```js
+function canFinishDFS(numCourses, prerequisites) {
+  const adj = Array.from({ length: numCourses }, () => []);
+  for (const [c, p] of prerequisites) adj[p].push(c);
+  const state = new Array(numCourses).fill(0); // 0=unvisited, 1=visiting, 2=done
+  function hasCycle(node) {
+    if (state[node] === 1) return true;
+    if (state[node] === 2) return false;
+    state[node] = 1;
+    for (const next of adj[node]) if (hasCycle(next)) return true;
+    state[node] = 2;
+    return false;
+  }
+  for (let i = 0; i < numCourses; i++) if (hasCycle(i)) return false;
+  return true;
+}
+```
+
+**Complexity:** Time **O(V + E)**, Space **O(V + E)**.
+
+#### Solution 2: Optimized (Kahn's BFS)
+
 **Approach (Kahn's BFS):** Build in-degrees; process zero-in-degree nodes, decrementing neighbors; if all
-processed, no cycle.
+processed, no cycle. Starting from courses that have no prerequisites and "peeling" them off level by level
+naturally stalls if a cycle exists (some node's in-degree never reaches zero), giving a simple, iterative
+cycle check without recursion.
 
 ```js
 function canFinish(numCourses, prerequisites) {
@@ -2197,7 +3793,42 @@ function canFinish(numCourses, prerequisites) {
 **Why this is a Topological Sort problem:** It explicitly asks for a topological ordering of a dependency
 DAG.
 
-**Approach:** Kahn's BFS, recording the processing order.
+#### Solution 1: Alternative Approach (DFS Post-order)
+
+**Approach:** DFS each course, and after fully exploring all of its dependents, push the course onto a
+result stack; reverse the stack at the end to get a valid order. This works because a node is only "closed"
+after everything reachable from it has been processed, so reversing the finish order yields a valid
+topological sort — but cycle detection needs the same visiting/visited coloring as 10.1.
+
+```js
+function findOrderDFS(numCourses, prerequisites) {
+  const adj = Array.from({ length: numCourses }, () => []);
+  for (const [c, p] of prerequisites) adj[p].push(c);
+  const state = new Array(numCourses).fill(0);
+  const order = [];
+  let hasCycle = false;
+  function dfs(node) {
+    if (state[node] === 1) { hasCycle = true; return; }
+    if (state[node] === 2) return;
+    state[node] = 1;
+    for (const next of adj[node]) dfs(next);
+    state[node] = 2;
+    order.push(node);
+  }
+  for (let i = 0; i < numCourses && !hasCycle; i++) dfs(i);
+  if (hasCycle) return [];
+  return order.reverse();
+}
+```
+
+**Complexity:** Time **O(V + E)**, Space **O(V + E)**.
+
+#### Solution 2: Optimized (Kahn's BFS)
+
+**Approach:** Kahn's BFS, recording the processing order. Because Kahn's algorithm only ever dequeues a
+node once all its prerequisites have already been dequeued, the dequeue order *is* a valid topological
+order directly — no reversal or extra bookkeeping needed, and a cycle is detected simply by the final order
+being shorter than `numCourses`.
 
 ```js
 function findOrder(numCourses, prerequisites) {
@@ -2229,8 +3860,50 @@ function findOrder(numCourses, prerequisites) {
 **Why this is a Topological Sort problem:** Adjacent word comparisons yield "char A before char B" edges; a
 topological order of those edges is the alphabet.
 
+#### Solution 1: Alternative Approach (DFS Post-order)
+
+**Approach:** Build the same "char before char" edges from adjacent word pairs, then run a DFS-based
+topological sort (visiting/visited coloring, pushing to a stack on finish, reversing at the end) instead of
+Kahn's BFS. Produces the same valid character order, trading in-degree counting for recursive
+post-order finishing.
+
+```js
+function alienOrderDFS(words) {
+  const adj = new Map();
+  for (const w of words) for (const ch of w) if (!adj.has(ch)) adj.set(ch, new Set());
+  for (let i = 0; i < words.length - 1; i++) {
+    const a = words[i], b = words[i + 1];
+    const len = Math.min(a.length, b.length);
+    if (a.length > b.length && a.startsWith(b)) return "";
+    for (let j = 0; j < len; j++) {
+      if (a[j] !== b[j]) { adj.get(a[j]).add(b[j]); break; }
+    }
+  }
+  const state = new Map(), order = [];
+  let hasCycle = false;
+  function dfs(ch) {
+    if (state.get(ch) === 1) { hasCycle = true; return; }
+    if (state.get(ch) === 2) return;
+    state.set(ch, 1);
+    for (const next of adj.get(ch)) dfs(next);
+    state.set(ch, 2);
+    order.push(ch);
+  }
+  for (const ch of adj.keys()) if (!hasCycle) dfs(ch);
+  return hasCycle ? "" : order.reverse().join("");
+}
+```
+
+**Complexity:** Time **O(C)** (total chars across words plus alphabet edges), Space **O(1)** (bounded
+alphabet).
+
+#### Solution 2: Optimized (Kahn's BFS)
+
 **Approach:** Build edges from adjacent word pairs (first differing char), then Kahn's topo sort; detect
-invalid prefixes and cycles.
+invalid prefixes and cycles. Comparing only *adjacent* words (since the list is already sorted) is enough
+to derive every necessary ordering constraint; Kahn's BFS then linearizes those constraints iteratively,
+and two edge cases must be checked explicitly: an invalid prefix ordering (`"abc"` listed before `"ab"`) and
+a cycle (result shorter than the alphabet size).
 
 ```js
 function alienOrder(words) {
@@ -2274,7 +3947,46 @@ function alienOrder(words) {
 **Why this is a Topological Sort (peeling) problem:** Repeatedly trim leaves layer by layer (like Kahn's on
 degree-1 nodes); the last 1–2 remaining are the centroids.
 
-**Approach:** Build degrees; iteratively remove current leaves until ≤2 nodes remain.
+#### Solution 1: Brute Force (BFS Height from Every Node)
+
+**Approach:** For every node, run a full BFS to compute the tree's height when rooted at that node, and
+keep the node(s) with the smallest resulting height. Directly implements the problem's definition, but
+recomputes a full BFS for every candidate root.
+
+```js
+function heightFrom(n, adj, root) {
+  const visited = new Array(n).fill(false);
+  visited[root] = true;
+  const queue = [[root, 0]];
+  let maxDepth = 0;
+  while (queue.length) {
+    const [node, depth] = queue.shift();
+    maxDepth = Math.max(maxDepth, depth);
+    for (const nb of adj[node]) if (!visited[nb]) { visited[nb] = true; queue.push([nb, depth + 1]); }
+  }
+  return maxDepth;
+}
+function findMinHeightTreesBrute(n, edges) {
+  if (n === 1) return [0];
+  const adj = Array.from({ length: n }, () => []);
+  for (const [a, b] of edges) { adj[a].push(b); adj[b].push(a); }
+  const heights = [];
+  for (let i = 0; i < n; i++) heights.push(heightFrom(n, adj, i));
+  const minHeight = Math.min(...heights);
+  const res = [];
+  for (let i = 0; i < n; i++) if (heights[i] === minHeight) res.push(i);
+  return res;
+}
+```
+
+**Complexity:** Time **O(n²)** (a BFS per node), Space **O(n)**.
+
+#### Solution 2: Optimized (Leaf-Peeling / Topological Trim)
+
+**Approach:** Build degrees; iteratively remove current leaves until ≤2 nodes remain. Instead of testing
+every node as a root, repeatedly strip away the current outermost layer of leaves (degree-1 nodes) —
+exactly like Kahn's algorithm peeling zero-in-degree nodes. The tree's "center" (the node(s) that minimize
+height) is whatever remains after peeling, since leaves are always farthest from the true center.
 
 ```js
 function findMinHeightTrees(n, edges) {
@@ -2315,7 +4027,39 @@ empty if impossible.
 **Why this is a Topological Sort problem:** It's the generic dependency-ordering problem — identical
 structure to Course Schedule II.
 
-**Approach:** Kahn's BFS over the dependency graph, recording order.
+#### Solution 1: Alternative Approach (DFS Post-order)
+
+**Approach:** Build the dependency graph and run a DFS-based topological sort (visiting/visited coloring,
+pushing to a stack on finish, then reversing), the same technique used as the alternative for 10.2. Detects
+cycles via the "still visiting" state instead of leftover in-degree counts.
+
+```js
+function taskOrderDFS(tasks, dependencies) {
+  const adj = Array.from({ length: tasks }, () => []);
+  for (const [a, b] of dependencies) adj[b].push(a);
+  const state = new Array(tasks).fill(0);
+  const order = [];
+  let hasCycle = false;
+  function dfs(t) {
+    if (state[t] === 1) { hasCycle = true; return; }
+    if (state[t] === 2) return;
+    state[t] = 1;
+    for (const next of adj[t]) dfs(next);
+    state[t] = 2;
+    order.push(t);
+  }
+  for (let i = 0; i < tasks && !hasCycle; i++) dfs(i);
+  return hasCycle ? [] : order.reverse();
+}
+```
+
+**Complexity:** Time **O(V + E)**, Space **O(V + E)**.
+
+#### Solution 2: Optimized (Kahn's BFS)
+
+**Approach:** Kahn's BFS over the dependency graph, recording order. Recognizing this as *structurally
+identical* to Course Schedule II — the real pattern-transfer skill interviewers look for — lets us reuse
+the same in-degree-based BFS directly.
 
 ```js
 function taskOrder(tasks, dependencies) {
@@ -2339,6 +4083,7 @@ real interview skill.
 
 ---
 
+
 ## 11. Two Heaps
 
 > These problems use the `Heap` class shown near the top of this file.
@@ -2352,8 +4097,36 @@ real interview skill.
 **Why this is a Two Heaps problem:** The median sits between the smaller half (max-heap) and larger half
 (min-heap); balancing them gives O(1) median.
 
+#### Solution 1: Brute Force (Sorted Insert)
+
+**Approach:** Keep all numbers in a single array, always inserted at the correct sorted position (via
+binary search + `splice`); the median is then just the middle element(s). Simple to reason about, but each
+insertion requires shifting elements, making it expensive for large streams.
+
+```js
+class MedianFinderBrute {
+  constructor() { this.data = []; }
+  addNum(num) {
+    let lo = 0, hi = this.data.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; this.data[mid] < num ? lo = mid + 1 : hi = mid; }
+    this.data.splice(lo, 0, num);
+  }
+  findMedian() {
+    const n = this.data.length, mid = n >> 1;
+    return n % 2 ? this.data[mid] : (this.data[mid - 1] + this.data[mid]) / 2;
+  }
+}
+```
+
+**Complexity:** `addNum` **O(n)** (due to `splice` shifting elements), `findMedian` **O(1)**, Space
+**O(n)**.
+
+#### Solution 2: Optimized (Two Heaps)
+
 **Approach:** Push to max-heap, shift its top to min-heap, rebalance sizes; median is the larger heap's top
-or the average of both tops.
+or the average of both tops. Keeping the smaller half of numbers in a max-heap and the larger half in a
+min-heap (each capped to be within one element of the other in size) means the median is always at the top
+of one or both heaps — giving O(log n) inserts instead of O(n).
 
 ```js
 class MedianFinder {
@@ -2389,8 +4162,31 @@ built-in heap so you'd supply one.
 **Why this is a Two Heaps problem:** Same two-heap median structure, extended with removal of the
 out-of-window element each step.
 
+#### Solution 1: Brute Force (Re-sort Every Window)
+
+**Approach:** For each window position, copy the `k` elements into a new array, sort it, and read the
+median directly. Very easy to write correctly, but re-sorts from scratch at every single step.
+
+```js
+function medianSlidingWindowBrute(nums, k) {
+  const res = [];
+  for (let i = 0; i + k <= nums.length; i++) {
+    const window = nums.slice(i, i + k).sort((a, b) => a - b);
+    const mid = k >> 1;
+    res.push(k % 2 ? window[mid] : (window[mid - 1] + window[mid]) / 2);
+  }
+  return res;
+}
+```
+
+**Complexity:** Time **O(n·k log k)**, Space **O(k)** per window.
+
+#### Solution 2: Optimized (Sorted-Insert Window / Two Heaps with Lazy Deletion)
+
 **Approach:** Maintain two heaps with lazy deletion (or rebalance); for each step add the new element and
-remove the one leaving the window, then read the median.
+remove the one leaving the window, then read the median. The clean fallback shown below keeps the current
+window's elements in a sorted array via binary-search insert/remove (avoiding a full re-sort per step); the
+fully optimal version uses two heaps with lazy deletion for O(log k) per step.
 
 ```js
 // Simplified O(n*k) version for clarity (sorted-insert window).
@@ -2434,8 +4230,36 @@ maximize final capital.
 **Why this is a Two Heaps problem:** A min-heap by capital reveals affordable projects; a max-heap by profit
 picks the most profitable affordable one — two heaps cooperating.
 
+#### Solution 1: Brute Force (Scan for Best Affordable Project Each Round)
+
+**Approach:** For each of the `k` rounds, linearly scan all projects to find the affordable one (capital ≤
+current `w`) with the highest profit, take it, and mark it used. Correct, but re-scans every remaining
+project on every round instead of maintaining sorted structures.
+
+```js
+function findMaximizedCapitalBrute(k, w, profits, capital) {
+  const used = new Array(profits.length).fill(false);
+  for (let round = 0; round < k; round++) {
+    let bestIdx = -1;
+    for (let i = 0; i < profits.length; i++) {
+      if (!used[i] && capital[i] <= w && (bestIdx === -1 || profits[i] > profits[bestIdx])) bestIdx = i;
+    }
+    if (bestIdx === -1) break;
+    used[bestIdx] = true;
+    w += profits[bestIdx];
+  }
+  return w;
+}
+```
+
+**Complexity:** Time **O(k·n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Two Heaps)
+
 **Approach:** Push affordable projects (capital ≤ w) into a profit max-heap; take the best, add its profit,
-repeat up to `k` times.
+repeat up to `k` times. A min-heap sorted by required capital lets us efficiently pull out *all* newly
+affordable projects as `w` grows, while a max-heap sorted by profit always gives the single best choice
+among them in O(log n) — avoiding the repeated full scan of the brute-force version.
 
 ```js
 function findMaximizedCapital(k, w, profits, capital) {
@@ -2468,8 +4292,36 @@ end (-1 if none).
 **Why this is a Two Heaps problem:** Two max-heaps (by start and by end) let you match each end to the
 nearest qualifying start.
 
+#### Solution 1: Brute Force (Compare Every Pair)
+
+**Approach:** For every interval, scan all other intervals to find the one with the smallest start that is
+still ≥ this interval's end. Directly implements the definition, but is quadratic since every interval is
+compared against every other.
+
+```js
+function findRightIntervalBrute(intervals) {
+  const res = new Array(intervals.length).fill(-1);
+  for (let i = 0; i < intervals.length; i++) {
+    let best = -1, bestStart = Infinity;
+    for (let j = 0; j < intervals.length; j++) {
+      if (intervals[j][0] >= intervals[i][1] && intervals[j][0] < bestStart) {
+        bestStart = intervals[j][0]; best = j;
+      }
+    }
+    res[i] = best;
+  }
+  return res;
+}
+```
+
+**Complexity:** Time **O(n²)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Sort Starts + Binary Search, or Two Heaps)
+
 **Approach:** Heaps keyed by start and by end; pop the largest end and find the smallest start ≥ it by
-draining the start-heap.
+draining the start-heap. A simpler equivalent — sort the starts once, then for each interval's end,
+**binary search** for the smallest start ≥ it — achieves the same O(n log n) result; the two-heap version
+below demonstrates the pattern explicitly by matching largest ends to qualifying starts directly.
 
 ```js
 function findRightInterval(intervals) {
@@ -2510,7 +4362,27 @@ two-heap version demonstrates the pattern explicitly.
 
 **Why this is a Top-K problem:** A min-heap of size `k` keeps the k largest seen, giving O(n log k).
 
-**Approach:** Push each value; pop the smallest when size exceeds `k`; the top is the answer.
+#### Solution 1: Brute Force (Full Sort)
+
+**Approach:** Sort the entire array in descending order and index directly into position `k-1`. Extremely
+simple, and fine for small inputs, but does far more work than necessary since we only need the `k`th
+value, not a full ordering.
+
+```js
+function findKthLargestBrute(nums, k) {
+  return [...nums].sort((a, b) => b - a)[k - 1];
+}
+// findKthLargestBrute([3,2,1,5,6,4], 2) -> 5
+```
+
+**Complexity:** Time **O(n log n)**, Space **O(n)** (copy for sorting).
+
+#### Solution 2: Optimized (Min-Heap of Size K)
+
+**Approach:** Push each value; pop the smallest when size exceeds `k`; the top is the answer. Only ever
+keeping the `k` largest values seen so far (discarding the smallest whenever the heap overflows) means we
+never need to fully sort the array — the complexity depends on `k`, not `n log n`. (Quickselect achieves an
+even better average O(n) if that's asked for.)
 
 ```js
 function findKthLargest(nums, k) {
@@ -2540,7 +4412,29 @@ clean default; mention Quickselect for optimal average.
 **Why this is a Top-K problem:** Count frequencies, then select the top K — bucket sort by frequency gives
 O(n).
 
-**Approach:** Frequency map → buckets indexed by frequency → read from the highest frequency down.
+#### Solution 1: Brute Force (Count + Sort)
+
+**Approach:** Count frequencies in a map, convert to an array of `[value, count]` pairs, sort that array by
+count descending, and take the first `k`. Very readable, but sorting is more work than needed since
+frequencies are bounded by `n`.
+
+```js
+function topKFrequentBrute(nums, k) {
+  const freq = new Map();
+  for (const num of nums) freq.set(num, (freq.get(num) || 0) + 1);
+  return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, k).map(e => e[0]);
+}
+// topKFrequentBrute([1,1,1,2,2,3], 2) -> [1,2]
+```
+
+**Complexity:** Time **O(n log n)** (sorting the frequency entries), Space **O(n)**.
+
+#### Solution 2: Optimized (Bucket Sort by Frequency)
+
+**Approach:** Frequency map → buckets indexed by frequency → read from the highest frequency down. Because
+no value can appear more than `n` times, frequencies are bounded, so we can index buckets directly by
+frequency instead of comparison-sorting — reading from the highest-frequency bucket down until we've
+collected `k` elements, achieving true linear time.
 
 ```js
 function topKFrequent(nums, k) {
@@ -2572,7 +4466,29 @@ stands out.
 
 **Why this is a Top-K problem:** "Closest K" by distance → a max-heap of size `k` keyed by squared distance.
 
-**Approach:** Push each point; when size exceeds `k`, pop the farthest; return what remains.
+#### Solution 1: Brute Force (Full Sort by Distance)
+
+**Approach:** Compute the squared distance of every point, sort all points by that distance ascending, and
+take the first `k`. Simple and correct, but sorts the entire input when only the smallest `k` distances
+matter.
+
+```js
+function kClosestBrute(points, k) {
+  return [...points]
+    .sort((a, b) => (a[0]**2 + a[1]**2) - (b[0]**2 + b[1]**2))
+    .slice(0, k);
+}
+// kClosestBrute([[1,3],[-2,2]], 1) -> [[-2,2]]
+```
+
+**Complexity:** Time **O(n log n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Max-Heap of Size K)
+
+**Approach:** Push each point; when size exceeds `k`, pop the farthest; return what remains. Keeping only
+the `k` closest points seen so far — discarding the current farthest whenever the heap overflows — avoids
+sorting the whole array; using **squared** distance avoids `Math.sqrt` calls entirely since it preserves
+ordering.
 
 ```js
 function kClosest(points, k) {
@@ -2602,7 +4518,29 @@ faster/exact.
 **Why this is a Top-K problem:** Order by frequency = repeatedly take the most frequent — a max-heap (or
 bucket sort) by count.
 
-**Approach:** Count chars; bucket by frequency; build the result from highest frequency down.
+#### Solution 1: Brute Force (Count + Sort)
+
+**Approach:** Count each character's frequency in a map, sort the entries by count descending, then build
+the result string by repeating each character its count number of times. Clear and simple, but pays sort
+cost that bucket sort avoids.
+
+```js
+function frequencySortBrute(s) {
+  const freq = new Map();
+  for (const c of s) freq.set(c, (freq.get(c) || 0) + 1);
+  const sorted = [...freq.entries()].sort((a, b) => b[1] - a[1]);
+  return sorted.map(([c, count]) => c.repeat(count)).join("");
+}
+// frequencySortBrute("tree") -> "eert" (or "eetr")
+```
+
+**Complexity:** Time **O(n log n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Bucket Sort by Frequency)
+
+**Approach:** Count chars; bucket by frequency; build the result from highest frequency down. As with Top K
+Frequent Elements, character frequencies are bounded by the string length, so indexing buckets directly by
+frequency and reading from the top down builds the result in linear time without any comparison sort.
 
 ```js
 function frequencySort(s) {
@@ -2634,7 +4572,47 @@ function frequencySort(s) {
 **Why this is a Top-K problem:** Always place the **most frequent remaining** character that isn't the one
 just used — a greedy max-heap by frequency.
 
+#### Solution 1: Brute Force (Backtracking)
+
+**Approach:** Try building the string character by character, at each step trying every character whose
+remaining count is > 0 and isn't equal to the last placed character, backtracking if a dead end is hit.
+Guaranteed to find a valid arrangement if one exists, but can explore exponentially many placements in the
+worst case.
+
+```js
+function reorganizeStringBrute(s) {
+  const freq = new Map();
+  for (const c of s) freq.set(c, (freq.get(c) || 0) + 1);
+  const chars = [...freq.keys()];
+  function backtrack(result) {
+    if (result.length === s.length) return result;
+    for (const c of chars) {
+      if (freq.get(c) > 0 && result[result.length - 1] !== c) {
+        freq.set(c, freq.get(c) - 1);
+        result.push(c);
+        const res = backtrack(result);
+        if (res) return res;
+        result.pop();
+        freq.set(c, freq.get(c) + 1);
+      }
+    }
+    return null;
+  }
+  const res = backtrack([]);
+  return res ? res.join("") : "";
+}
+// reorganizeStringBrute("aab") -> "aba"
+```
+
+**Complexity:** Time exponential worst case, Space **O(n)** recursion.
+
+#### Solution 2: Optimized (Greedy Max-Heap)
+
 **Approach:** Max-heap by count; pop the top, hold it back one step so it can't be placed consecutively.
+Always placing the currently most-frequent remaining character greedily guarantees no two identical
+characters end up adjacent, as long as it's feasible; holding the just-used character back by exactly one
+iteration (re-adding it after placing the next pick) enforces the no-repeat-adjacent rule in O(log k) per
+character. If the max frequency exceeds `(n+1)/2`, no valid arrangement exists.
 
 ```js
 function reorganizeString(s) {
@@ -2671,8 +4649,28 @@ max count exceeds `(n+1)/2`, it's impossible.
 **Why this is a Top-K problem:** "Closest K" in sorted data — best solved by binary-searching the window
 start, but a heap also works.
 
+#### Solution 1: Brute Force (Sort by Distance to Target)
+
+**Approach:** Compute each element's distance from `x`, sort the whole array by that distance, take the
+first `k`, and re-sort those `k` numerically for the final answer. Straightforward, but ignores that the
+input is already sorted and does more sorting work than necessary.
+
+```js
+function findClosestElementsBrute(arr, k, x) {
+  const sorted = [...arr].sort((a, b) => Math.abs(a - x) - Math.abs(b - x));
+  return sorted.slice(0, k).sort((a, b) => a - b);
+}
+// findClosestElementsBrute([1,2,3,4,5], 4, 3) -> [1,2,3,4]
+```
+
+**Complexity:** Time **O(n log n)**, Space **O(n)**.
+
+#### Solution 2: Optimized (Binary Search the Window)
+
 **Approach (optimal):** Binary search for the left bound of the best length-`k` window by comparing the gap
-to elements at both ends.
+to elements at both ends. Since the array is already sorted, the best `k`-length window is contiguous;
+binary-searching for its left edge (comparing which side has the smaller "distance to `x`" gap at each
+step) finds the answer without ever sorting, in logarithmic time plus the cost to slice out `k` elements.
 
 ```js
 function findClosestElements(arr, k, x) {
@@ -2695,6 +4693,7 @@ k) and is the standout for sorted input.
 
 ---
 
+
 ## 13. K-way Merge
 
 > These problems use the `Heap` class shown near the top of this file.
@@ -2708,7 +4707,33 @@ k) and is the standout for sorted input.
 **Why this is a K-way Merge problem:** Multiple sorted sequences combined; a min-heap over current heads
 always yields the global minimum next.
 
-**Approach:** Push all heads; pop the smallest, append, push its `next`.
+#### Solution 1: Brute Force (Collect All, Sort, Rebuild)
+
+**Approach:** Traverse every list collecting all node values into one array, sort that array, then build a
+brand-new linked list from the sorted values. Very easy to implement correctly, but ignores that each
+input list is already sorted, paying full sort cost.
+
+```js
+function mergeKListsBrute(lists) {
+  const vals = [];
+  for (const node of lists) for (let n = node; n; n = n.next) vals.push(n.val);
+  vals.sort((a, b) => a - b);
+  const dummy = { val: 0, next: null };
+  let tail = dummy;
+  for (const v of vals) { tail.next = { val: v, next: null }; tail = tail.next; }
+  return dummy.next;
+}
+```
+
+**Complexity:** Time **O(N log N)** (N = total nodes, dominated by the sort), Space **O(N)**.
+
+#### Solution 2: Optimized (Min-Heap Merge)
+
+**Approach:** Push all heads; pop the smallest, append, push its `next`. Since each of the `k` lists is
+already individually sorted, a min-heap over the current "frontier" node of each list always yields the
+global minimum next value directly — avoiding a full sort by exploiting the existing order within each
+list. (A divide-and-conquer pairwise merge is an equally good O(N log k) alternative with O(1) extra
+space.)
 
 ```js
 function mergeKLists(lists) {
@@ -2741,8 +4766,29 @@ extra.
 **Why this is a K-way Merge problem:** Each row is a sorted list; a min-heap merges across rows to extract
 the `k`th smallest.
 
+#### Solution 1: Brute Force (Flatten and Sort)
+
+**Approach:** Flatten the entire matrix into a single array, sort it, and index into position `k-1`.
+Correct and simple, but ignores the sorted-row/sorted-column structure entirely, paying full sort cost on
+all `n²` elements.
+
+```js
+function kthSmallestBrute(matrix, k) {
+  const flat = matrix.flat().sort((a, b) => a - b);
+  return flat[k - 1];
+}
+// kthSmallestBrute([[1,5,9],[10,11,13],[12,13,15]], 8) -> 13
+```
+
+**Complexity:** Time **O(n² log n²)**, Space **O(n²)**.
+
+#### Solution 2: Optimized (K-way Merge via Min-Heap)
+
 **Approach:** Seed the heap with the first element of each row; pop `k` times, pushing the next element in
-the popped element's row.
+the popped element's row. Treating each row as an individually sorted list, a min-heap over the current
+frontier of each row (like merging k sorted lists) extracts the smallest remaining value each pop; after
+`k` pops we've found the k-th smallest without ever sorting the whole matrix. (For very large matrices, an
+even better **binary search on the value range**, O(n log(max−min)), avoids the heap altogether.)
 
 ```js
 function kthSmallest(matrix, k) {
@@ -2776,8 +4822,42 @@ huge matrices.
 **Why this is a K-way Merge problem:** Track the current minimum across lists (min-heap) and the running
 maximum; the range spans them, advancing the list with the minimum.
 
+#### Solution 1: Brute Force (Try Every Starting Combination)
+
+**Approach:** Try every combination of one pointer per list (starting all at index 0), and at each step
+advance the pointer belonging to the list with the current minimum value, recording the range at every
+step — but without a heap, finding "the list with the minimum" requires scanning all `k` pointers each
+time. Correct, but the repeated linear scan across lists to find the current min/max is much slower than
+maintaining a heap.
+
+```js
+function smallestRangeBrute(nums) {
+  const pointers = new Array(nums.length).fill(0);
+  let best = [-Infinity, Infinity];
+  while (pointers.every((p, i) => p < nums[i].length)) {
+    let curMin = Infinity, curMax = -Infinity, minList = 0;
+    for (let i = 0; i < nums.length; i++) {
+      const val = nums[i][pointers[i]];
+      if (val < curMin) { curMin = val; minList = i; }
+      curMax = Math.max(curMax, val);
+    }
+    if (curMax - curMin < best[1] - best[0]) best = [curMin, curMax];
+    pointers[minList]++;
+  }
+  return best;
+}
+// smallestRangeBrute([[4,10,15,24,26],[0,9,12,20],[5,18,22,30]]) -> [20,24]
+```
+
+**Complexity:** Time **O(N·k)** (N total elements, k-length scan per step to find min/max), Space **O(k)**.
+
+#### Solution 2: Optimized (K-way Merge via Min-Heap)
+
 **Approach:** Heap of one element per list; range = `[heapMin, currentMax]`; pop the min and push the next
-from its list; stop when a list is exhausted.
+from its list; stop when a list is exhausted. Using a min-heap to track the current minimum across all
+lists (instead of scanning) reduces the per-step cost from O(k) to O(log k); the running max is tracked
+alongside as elements are pushed, so the range at each step is available in O(1). The loop must stop the
+moment one list runs out, since we can no longer guarantee coverage of every list.
 
 ```js
 function smallestRange(nums) {
@@ -2814,7 +4894,30 @@ function smallestRange(nums) {
 **Why this is a K-way Merge problem:** Each element of the first array forms a sorted "list" of pair sums
 with the second array; merge these k-ways via a min-heap.
 
+#### Solution 1: Brute Force (Generate All Pairs, Sort)
+
+**Approach:** Generate every possible pair `(nums1[i], nums2[j])`, compute its sum, sort all pairs by sum
+ascending, and take the first `k`. Correct and simple, but generates and sorts `O(m·n)` pairs when only
+`k` are needed.
+
+```js
+function kSmallestPairsBrute(nums1, nums2, k) {
+  const pairs = [];
+  for (const a of nums1) for (const b of nums2) pairs.push([a, b]);
+  pairs.sort((p1, p2) => (p1[0] + p1[1]) - (p2[0] + p2[1]));
+  return pairs.slice(0, k);
+}
+// kSmallestPairsBrute([1,7,11], [2,4,6], 3) -> [[1,2],[1,4],[1,6]]
+```
+
+**Complexity:** Time **O(m·n log(m·n))**, Space **O(m·n)**.
+
+#### Solution 2: Optimized (K-way Merge via Min-Heap)
+
 **Approach:** Seed pairs `(nums1[i], nums2[0])`; pop the smallest sum, push the next pair in that row.
+Because both arrays are sorted, each `nums1[i]` paired with increasing `nums2[j]` forms its own sorted
+"list" of sums; seeding the heap with just the first column (`j = 0`) of up to `k` rows and expanding
+rightward as pairs are popped merges these lists efficiently without ever generating all `m·n` pairs.
 
 ```js
 function kSmallestPairs(nums1, nums2, k) {
@@ -2841,6 +4944,7 @@ the efficiency.
 
 ---
 
+
 ## 14. Modified Binary Search
 
 ### 14.1 Search in Rotated Sorted Array
@@ -2852,7 +4956,28 @@ the efficiency.
 **Why this is a Modified Binary Search problem:** One half is always sorted; decide which half can contain
 the target and discard the other.
 
+#### Solution 1: Brute Force (Linear Scan)
+
+**Approach:** Scan the array from left to right, comparing each element to the target and returning its
+index on a match. Trivially correct and works on any array regardless of rotation, but doesn't use the
+sortedness at all, missing the expected O(log n).
+
+```js
+function searchBrute(nums, target) {
+  for (let i = 0; i < nums.length; i++) if (nums[i] === target) return i;
+  return -1;
+}
+// searchBrute([4,5,6,7,0,1,2], 0) -> 4
+```
+
+**Complexity:** Time **O(n)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Modified Binary Search)
+
 **Approach:** Determine the sorted half; if the target lies in its range, search there, else the other.
+Even though the whole array isn't sorted, one of the two halves around any `mid` always is; checking which
+half is sorted and whether the target's value falls within that half's range lets us discard half the
+search space each iteration, just like standard binary search.
 
 ```js
 function search(nums, target) {
@@ -2887,7 +5012,34 @@ degrade the worst case to O(n).
 **Why this is a Modified Binary Search problem:** Locating value boundaries = binary-search-for-the-edge,
 done twice.
 
-**Approach:** Two biased binary searches — one keeps going left on a match, the other right.
+#### Solution 1: Brute Force (Linear Scan)
+
+**Approach:** Scan the array once from left to right, recording the first index where the target appears
+and continuing to update the last index seen until the target no longer matches. Simple and correct, but
+doesn't exploit sortedness at all.
+
+```js
+function searchRangeBrute(nums, target) {
+  let first = -1, last = -1;
+  for (let i = 0; i < nums.length; i++) {
+    if (nums[i] === target) {
+      if (first === -1) first = i;
+      last = i;
+    }
+  }
+  return [first, last];
+}
+// searchRangeBrute([5,7,7,8,8,10], 8) -> [3,4]
+```
+
+**Complexity:** Time **O(n)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Two Biased Binary Searches)
+
+**Approach:** Two biased binary searches — one keeps going left on a match, the other right. Rather than
+stopping at the first match found, each search continues narrowing toward the edge (left search keeps
+exploring left after a match, right search keeps exploring right), so both boundaries are found in
+logarithmic time using the sorted structure.
 
 ```js
 function searchRange(nums, target) {
@@ -2921,7 +5073,27 @@ function searchRange(nums, target) {
 **Why this is a Modified Binary Search problem:** Compare `mid` to `hi` to decide which half holds the
 rotation point (the minimum).
 
-**Approach:** If `nums[mid] > nums[hi]`, the min is to the right; else it's at `mid` or left.
+#### Solution 1: Brute Force (Linear Scan)
+
+**Approach:** Scan the whole array and track the smallest value seen. Trivially correct, but ignores that
+the array is sorted-then-rotated, which allows for a logarithmic solution.
+
+```js
+function findMinBrute(nums) {
+  let min = nums[0];
+  for (const num of nums) min = Math.min(min, num);
+  return min;
+}
+// findMinBrute([4,5,6,7,0,1,2]) -> 0
+```
+
+**Complexity:** Time **O(n)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Modified Binary Search)
+
+**Approach:** If `nums[mid] > nums[hi]`, the min is to the right; else it's at `mid` or left. Comparing
+`mid` to `hi` (not `lo`) tells us which side of `mid` contains the "break point" where the rotation occurs
+— that break point is always the minimum — letting us discard half the array each step.
 
 ```js
 function findMin(nums) {
@@ -2951,7 +5123,33 @@ function findMin(nums) {
 **Why this is a Modified Binary Search problem:** Even unsorted, comparing `mid` with `mid+1` tells you
 which side must contain a peak — so you halve the search.
 
-**Approach:** If `nums[mid] < nums[mid+1]`, a peak lies to the right; else at `mid` or left.
+#### Solution 1: Brute Force (Linear Scan)
+
+**Approach:** Scan the array checking each element against both neighbors (treating out-of-bounds
+neighbors as `-Infinity`), and return the first index that qualifies as a peak. Correct, but doesn't
+achieve the required O(log n).
+
+```js
+function findPeakElementBrute(nums) {
+  const n = nums.length;
+  for (let i = 0; i < n; i++) {
+    const left = i === 0 ? -Infinity : nums[i - 1];
+    const right = i === n - 1 ? -Infinity : nums[i + 1];
+    if (nums[i] > left && nums[i] > right) return i;
+  }
+  return -1;
+}
+// findPeakElementBrute([1,2,3,1]) -> 2
+```
+
+**Complexity:** Time **O(n)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Modified Binary Search)
+
+**Approach:** If `nums[mid] < nums[mid+1]`, a peak lies to the right; else at `mid` or left. Even though
+the array isn't sorted, comparing a middle element to its right neighbor is enough to know which half must
+contain *some* peak (following the "uphill" direction always leads to one), letting binary search discard
+half the array each step.
 
 ```js
 function findPeakElement(nums) {
@@ -2983,7 +5181,31 @@ in the chosen half.
 **Why this is a Modified Binary Search problem:** The answer space (eating speed) is monotonic — higher
 speed never needs more hours — so binary-search the **answer**.
 
-**Approach:** Binary search `k` in `[1, max(piles)]`; feasibility = total hours at speed `k` ≤ `h`.
+#### Solution 1: Brute Force (Try Every Speed)
+
+**Approach:** Try every possible eating speed starting from 1 upward, computing the total hours needed for
+each and returning the first speed that fits within `h` hours. Correct, but checks many speeds
+one-by-one instead of exploiting the monotonic relationship between speed and hours needed.
+
+```js
+function minEatingSpeedBrute(piles, h) {
+  const hoursNeeded = (k) => piles.reduce((sum, p) => sum + Math.ceil(p / k), 0);
+  let k = 1;
+  while (hoursNeeded(k) > h) k++;
+  return k;
+}
+// minEatingSpeedBrute([3,6,7,11], 8) -> 4
+```
+
+**Complexity:** Time **O(maxPile · n)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Binary Search on the Answer)
+
+**Approach:** Binary search `k` in `[1, max(piles)]`; feasibility = total hours at speed `k` ≤ `h`. Because
+increasing eating speed never *increases* the hours needed (a monotonic relationship), we can binary search
+directly on the candidate speed itself rather than the array — testing whether a given speed is "feasible"
+and narrowing toward the smallest feasible one. This generalizes to any "minimum threshold satisfying a
+monotonic feasibility check" problem.
 
 ```js
 function minEatingSpeed(piles, h) {
@@ -3016,7 +5238,28 @@ the last of the previous row. O(log(m·n)).
 **Why this is a Modified Binary Search problem:** The matrix behaves like one sorted array of length `m·n`;
 binary-search with index→(row,col) mapping.
 
-**Approach:** Binary search over `[0, m·n−1]`, mapping `mid` to `(mid / cols, mid % cols)`.
+#### Solution 1: Brute Force (Scan Every Cell)
+
+**Approach:** Check every cell in the matrix directly against the target with a nested loop. Correct and
+works on any matrix layout, but ignores the strong sorted structure that permits a logarithmic solution.
+
+```js
+function searchMatrixBrute(matrix, target) {
+  for (const row of matrix) for (const val of row) if (val === target) return true;
+  return false;
+}
+// searchMatrixBrute([[1,3,5,7],[10,11,16,20],[23,30,34,60]], 3) -> true
+```
+
+**Complexity:** Time **O(rows·cols)**, Space **O(1)**.
+
+#### Solution 2: Optimized (Binary Search over Flattened Index)
+
+**Approach:** Binary search over `[0, m·n−1]`, mapping `mid` to `(mid / cols, mid % cols)`. Because each
+row continues where the previous one left off, the whole matrix behaves like one long sorted array; mapping
+a flat index to `(row, col)` via integer division/modulo lets a single standard binary search work directly
+on the matrix. (If only individual rows — not the whole matrix — are sorted, use a staircase O(m+n) search
+instead.)
 
 ```js
 function searchMatrix(matrix, target) {
@@ -3040,6 +5283,7 @@ sorted, use the staircase O(m+n) search instead.
 
 ---
 
+
 ## 15. Subsets / Backtracking
 
 ### 15.1 Generate All Subsets
@@ -3050,7 +5294,34 @@ sorted, use the staircase O(m+n) search instead.
 
 **Why this is a Backtracking problem:** Explore an include/exclude decision tree, recording every node.
 
-**Approach:** Recurse with a start index; record the current subset, extend, recurse, undo.
+#### Solution 1: Alternative Approach (Bitmask Iteration)
+
+**Approach:** For every integer from `0` to `2ⁿ-1`, treat its binary representation as an include/exclude
+decision for each element (bit `i` set means include `nums[i]`), and build the subset accordingly. This
+avoids explicit recursion by directly enumerating every combination of bits, which maps one-to-one onto
+every possible subset.
+
+```js
+function subsetsBitmask(nums) {
+  const n = nums.length, res = [];
+  for (let mask = 0; mask < (1 << n); mask++) {
+    const subset = [];
+    for (let i = 0; i < n; i++) if (mask & (1 << i)) subset.push(nums[i]);
+    res.push(subset);
+  }
+  return res;
+}
+// subsetsBitmask([1,2,3]) -> 8 subsets
+```
+
+**Complexity:** Time **O(n·2ⁿ)**, Space **O(n)** per subset built.
+
+#### Solution 2: Optimized (Backtracking)
+
+**Approach:** Recurse with a start index; record the current subset, extend, recurse, undo. Building
+subsets incrementally and pushing a copy at every recursive call node naturally covers every subset once,
+without needing to decode bitmasks; pushing a **copy** (not the reference) and popping on the way back up
+(backtracking) is the standard idiom that keeps this clean and reusable.
 
 ```js
 function subsets(nums) {
@@ -3084,7 +5355,39 @@ function subsets(nums) {
 **Why this is a Backtracking problem:** All orderings = place each unused element at each position,
 backtracking after.
 
-**Approach:** Track used elements; add unused, recurse, undo.
+#### Solution 1: Brute Force (Swap-Based Recursive Generation)
+
+**Approach:** Recursively fix each position by swapping it with every element from that position onward,
+recursing on the remainder, then swapping back. Also a valid backtracking-family technique, but it
+generates permutations via in-place index swaps rather than an explicit "used" tracking array, which is
+less intuitive to reason about and mutates the input array during recursion.
+
+```js
+function permuteBrute(nums) {
+  const res = [];
+  function swap(arr, i, j) { [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  function permuteHelper(arr, k) {
+    if (k === arr.length - 1) { res.push([...arr]); return; }
+    for (let i = k; i < arr.length; i++) {
+      swap(arr, k, i);
+      permuteHelper(arr, k + 1);
+      swap(arr, k, i); // undo
+    }
+  }
+  permuteHelper([...nums], 0);
+  return res;
+}
+// permuteBrute([1,2,3]) -> 6 permutations
+```
+
+**Complexity:** Time **O(n·n!)**, Space **O(n)** recursion.
+
+#### Solution 2: Optimized (Backtracking with a Used-Tracker)
+
+**Approach:** Track used elements; add unused, recurse, undo. Explicitly tracking which elements have
+already been placed (via a `used` boolean array) is the clearest way to build every ordering: at each
+recursive level we try every not-yet-used element, and un-mark it after backtracking so siblings can reuse
+it — the standard, most readable permutation template.
 
 ```js
 function permute(nums) {
@@ -3120,7 +5423,42 @@ function permute(nums) {
 **Why this is a Backtracking problem:** Build combinations by repeatedly choosing candidates and pruning
 when the running sum exceeds the target.
 
-**Approach:** Recurse with a start index (allow reuse via same `i`); prune when remaining < 0.
+#### Solution 1: Brute Force (Backtracking without Pruning)
+
+**Approach:** Explore every possible sequence of candidate choices (allowing reuse) up to the point where
+the sum reaches or exceeds the target, only checking the sum-equals-target condition once a branch
+terminates, without cutting off clearly-doomed branches as early as possible. It's correct, but slightly
+less aggressive about pruning than the optimized version, exploring more dead branches before recognizing
+they've failed.
+
+```js
+function combinationSumBrute(candidates, target) {
+  const res = [];
+  function backtrack(start, current, sum) {
+    if (sum === target) { res.push([...current]); return; }
+    if (sum > target || start === candidates.length) return;
+    // try including candidates[start] any number of times, then move on
+    for (let count = 0; sum + count * candidates[start] <= target; count++) {
+      for (let i = 0; i < count; i++) current.push(candidates[start]);
+      backtrack(start + 1, current, sum + count * candidates[start]);
+      for (let i = 0; i < count; i++) current.pop();
+    }
+  }
+  backtrack(0, [], 0);
+  return res;
+}
+// combinationSumBrute([2,3,6,7], 7) -> [[2,2,3],[7]]
+```
+
+**Complexity:** Exponential in the worst case, similar order to the optimized version but with more
+redundant branching. Space **O(target)** depth.
+
+#### Solution 2: Optimized (Backtracking with Early Pruning)
+
+**Approach:** Recurse with a start index (allow reuse via same `i`); prune when remaining < 0. Passing `i`
+(not `i+1`) into the recursive call is what allows a candidate to be reused; checking `remaining < 0`
+immediately prunes any branch that has already overshot the target, avoiding wasted exploration deeper
+into a doomed branch.
 
 ```js
 function combinationSum(candidates, target) {
@@ -3155,7 +5493,36 @@ function combinationSum(candidates, target) {
 **Why this is a Backtracking problem:** Each digit multiplies the branching; build strings one digit at a
 time.
 
-**Approach:** Map digits to letters; recurse appending each letter for the current digit.
+#### Solution 1: Brute Force (Iterative Cartesian Product)
+
+**Approach:** Start with a list containing just the empty string, and for each digit, build a new list by
+combining every existing partial string with every letter for that digit. Produces the same combinations
+via iterative list-building instead of recursion, but keeps the full growing list of partial results in
+memory throughout.
+
+```js
+function letterCombinationsBrute(digits) {
+  if (!digits.length) return [];
+  const map = { '2':'abc','3':'def','4':'ghi','5':'jkl','6':'mno','7':'pqrs','8':'tuv','9':'wxyz' };
+  let res = [""];
+  for (const d of digits) {
+    const next = [];
+    for (const prefix of res) for (const ch of map[d]) next.push(prefix + ch);
+    res = next;
+  }
+  return res;
+}
+// letterCombinationsBrute("23") -> ["ad","ae","af","bd","be","bf","cd","ce","cf"]
+```
+
+**Complexity:** Time **O(4ⁿ·n)**, Space **O(4ⁿ·n)** (all intermediate lists).
+
+#### Solution 2: Optimized (Backtracking)
+
+**Approach:** Map digits to letters; recurse appending each letter for the current digit. Building the
+string incrementally through recursion (rather than growing/replacing whole lists at each digit) uses only
+recursion-depth space for the "in progress" string, only materializing full combinations at the leaves of
+the recursion tree.
 
 ```js
 function letterCombinations(digits) {
@@ -3187,7 +5554,46 @@ function letterCombinations(digits) {
 **Why this is a Backtracking problem:** Build strings while pruning invalid prefixes (never more `)` than
 `(`).
 
-**Approach:** Track open/close counts; add `(` while `open < n`, add `)` while `close < open`.
+#### Solution 1: Brute Force (Generate All, Then Filter Valid)
+
+**Approach:** Generate every possible string of length `2n` made of `(` and `)` (via recursion trying both
+characters at each position), then check each complete string for validity using a balance counter.
+Correct, but explores every possible string — including many clearly invalid prefixes — instead of pruning
+early.
+
+```js
+function isValidParens(s) {
+  let balance = 0;
+  for (const ch of s) {
+    balance += ch === '(' ? 1 : -1;
+    if (balance < 0) return false;
+  }
+  return balance === 0;
+}
+function generateParenthesisBrute(n) {
+  const res = [];
+  function generateAll(current, length) {
+    if (current.length === length) {
+      if (isValidParens(current)) res.push(current);
+      return;
+    }
+    generateAll(current + "(", length);
+    generateAll(current + ")", length);
+  }
+  generateAll("", 2 * n);
+  return res;
+}
+// generateParenthesisBrute(3) -> 5 combinations
+```
+
+**Complexity:** Time **O(2^(2n)·n)** (generate all binary strings, validate each), Space **O(n)** recursion.
+
+#### Solution 2: Optimized (Backtracking with Pruning)
+
+**Approach:** Track open/close counts; add `(` while `open < n`, add `)` while `close < open`. Instead of
+generating every string blindly, the constraints (`open < n`, `close < open`) prune invalid branches the
+instant they'd become unrecoverable, so every string built to completion is guaranteed valid — this is far
+more efficient than generate-then-filter.
 
 ```js
 function generateParenthesis(n) {
@@ -3220,7 +5626,41 @@ reuse).
 **Why this is a Backtracking problem:** DFS from each cell, marking visited and backtracking when a path
 fails.
 
+#### Solution 1: Brute Force (DFS with a Separate Visited Set)
+
+**Approach:** Same DFS structure, but instead of temporarily mutating the board to mark visited cells,
+track visited coordinates in a separate `Set` that gets entries added and removed around each recursive
+call. Functionally equivalent, but the extra `Set` (and string-key construction for coordinates) adds
+overhead compared to mutating the grid directly.
+
+```js
+function existBrute(board, word) {
+  const rows = board.length, cols = board[0].length;
+  const visited = new Set();
+  function dfs(r, c, i) {
+    if (i === word.length) return true;
+    const key = `${r},${c}`;
+    if (r < 0 || c < 0 || r >= rows || c >= cols || visited.has(key) || board[r][c] !== word[i]) return false;
+    visited.add(key);
+    const found = dfs(r+1,c,i+1) || dfs(r-1,c,i+1) || dfs(r,c+1,i+1) || dfs(r,c-1,i+1);
+    visited.delete(key); // backtrack
+    return found;
+  }
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      if (dfs(r, c, 0)) return true;
+  return false;
+}
+```
+
+**Complexity:** Time **O(rows·cols·4^L)**, Space **O(L)** recursion + **O(L)** for the visited set.
+
+#### Solution 2: Optimized (DFS with In-Place Marking)
+
 **Approach:** DFS matching characters; temporarily mark the cell visited, recurse 4 directions, restore.
+Marking the cell directly on the board (e.g. with `'#'`) instead of maintaining a separate set avoids extra
+data-structure overhead; restoring the cell after recursion (backtracking) is essential so other paths can
+still use it.
 
 ```js
 function exist(board, word) {
@@ -3259,7 +5699,48 @@ solutions (or the boards).
 **Why this is a Backtracking problem:** Place queens row by row, pruning columns/diagonals already
 attacked, backtracking on dead ends.
 
-**Approach:** Track used columns and both diagonals (by `r+c` and `r-c`); recurse row by row.
+#### Solution 1: Brute Force (Re-check the Whole Board Each Placement)
+
+**Approach:** Place queens row by row, but instead of maintaining running sets of attacked
+columns/diagonals, check every previously placed queen against the candidate position each time (scanning
+column and both diagonals directly). Produces the same result, but the O(row) safety check per candidate
+is slower than an O(1) set lookup.
+
+```js
+function isSafe(placement, row, col) {
+  for (let r = 0; r < row; r++) {
+    const c = placement[r];
+    if (c === col || Math.abs(c - col) === Math.abs(r - row)) return false;
+  }
+  return true;
+}
+function totalNQueensBrute(n) {
+  let count = 0;
+  const placement = new Array(n).fill(-1);
+  function backtrack(row) {
+    if (row === n) { count++; return; }
+    for (let col = 0; col < n; col++) {
+      if (isSafe(placement, row, col)) {
+        placement[row] = col;
+        backtrack(row + 1);
+        placement[row] = -1;
+      }
+    }
+  }
+  backtrack(0);
+  return count;
+}
+// totalNQueensBrute(4) -> 2
+```
+
+**Complexity:** Time **O(n!·n)** (n per safety check), Space **O(n)**.
+
+#### Solution 2: Optimized (Backtracking with O(1) Attack-Set Lookups)
+
+**Approach:** Track used columns and both diagonals (by `r+c` and `r-c`); recurse row by row. Representing
+each diagonal by the constant `row - col` (for one direction) and `row + col` (for the other) means every
+cell on the same diagonal shares that same value, so maintaining three `Set`s (columns, and both diagonal
+families) turns every attack check into an O(1) lookup instead of scanning all previously placed queens.
 
 ```js
 function totalNQueens(n) {
@@ -3284,6 +5765,13 @@ function totalNQueens(n) {
 
 **💡 Interview tip:** Representing diagonals as `row−col` and `row+col` makes attack checks O(1) — the
 elegant detail interviewers look for.
+
+---
+
+> **Scope note:** Patterns 1–15 above have been upgraded to the **two-solutions-per-problem** format
+> (Brute Force + Optimized, each with a detailed approach and complexity). Patterns 16–22 below are still
+> in the original **single-solution** format and are tracked as a follow-up to receive the same dual-solution
+> treatment in a subsequent update.
 
 ---
 
